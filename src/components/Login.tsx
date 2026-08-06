@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import logo from "../assets/logo/humangrid-logo.png";
 import { useState } from "react";
 import { signIn } from "../services/auth";
@@ -126,9 +126,9 @@ navigate("/dashboard");
 
           <p className="login-footer-text">
             New to HumanGrid?{" "}
-            <a href="/signup" className="login-link login-link-strong">
-    Create an account
-</a>
+            <Link to="/signup" className="login-link login-link-strong">
+  Create an account
+</Link>
           </p>
         </div>
       </div>
