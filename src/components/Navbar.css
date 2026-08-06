@@ -1,0 +1,116 @@
+.navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 60px;
+  background-color: #fdf9f3;
+  font-family: "Segoe UI", sans-serif;
+}
+
+.navbar-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo-img {
+  height: 100px;
+  width: 100px;
+  object-fit: contain;
+}
+
+.logo-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.brand-name {
+  font-size: 34px;
+  font-weight: 700;
+  font-family: 'playfair display' serif;
+  color: #1a1a1a;
+}
+
+.brand-tagline {
+  font-size: 15px;
+  font-weight: 500;
+  color: #b8895a;
+}
+
+.navbar-links {
+  display: flex;
+  list-style: none;
+  gap: 32px;
+  margin: 0;
+  padding: 0;
+}
+
+.navbar-links li a {
+  text-decoration: none;
+  color: #333;
+  font-size: 15px;
+  font-weight: 500;
+  padding-bottom: 4px;
+}
+
+.navbar-links li a.active-link {
+  color: #1a1a1a;
+  border-bottom: 2px solid #c8963e;
+}
+
+.navbar-links li a:hover {
+  color: #c8963e;
+}
+
+.navbar-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+.btn-login {
+  background: transparent;
+  border: 1px solid #c8963e;
+  color: #c8963e;
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-getstarted {
+  background: #c8963e;
+  border: none;
+  color: #fff;
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-getstarted:hover {
+  background: #b17f2f;
+}
+
+.navbar-toggle {
+  display: none;
+  flex-direction: column;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.navbar-toggle span {
+  width: 25px;
+  height: 3px;
+  background: #333;
+}
+
+@media (max-width: 768px) {
+  .navbar-links,
+  .navbar-buttons {
+    display: none;
+  }
+  .navbar-toggle {
+    display: flex;
+  }
+}
