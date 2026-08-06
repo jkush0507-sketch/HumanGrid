@@ -1,0 +1,349 @@
+/* ===== Login Page — HumanGrid theme ===== */
+
+.login-page {
+    animation: fadeIn 0.5s ease;
+
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: #fdfaf5;
+}
+
+/* ---------- Left visual panel ---------- */
+.login-visual {
+  position: relative;
+  background: linear-gradient(160deg, #1b2a4a 0%, #24365e 55%, #1b2a4a 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60px;
+  overflow: hidden;
+}
+
+.login-visual::before {
+  content: "";
+  position: absolute;
+  width: 480px;
+  height: 480px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(201, 160, 80, 0.18), transparent 70%);
+  top: -120px;
+  right: -120px;
+}
+
+.login-visual::after {
+  content: "";
+  position: absolute;
+  width: 360px;
+  height: 360px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(201, 160, 80, 0.12), transparent 70%);
+  bottom: -100px;
+  left: -80px;
+}
+
+.login-visual-overlay {
+  position: relative;
+  z-index: 1;
+  max-width: 420px;
+  color: #f5f2ea;
+}
+
+.login-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(201, 160, 80, 0.15);
+  border: 1px solid rgba(201, 160, 80, 0.4);
+  color: #c9a050;
+  font-size: 24px;
+  margin-bottom: 24px;
+}
+
+.login-visual-overlay h2 {
+  font-family: "Playfair Display", serif;
+  font-size: 34px;
+  line-height: 1.25;
+  margin-bottom: 16px;
+  color: #ffffff;
+}
+
+.login-visual-overlay > p {
+  font-family: "Inter", sans-serif;
+  font-size: 15px;
+  color: #b0b8c9;
+  line-height: 1.7;
+  margin-bottom: 32px;
+}
+
+.login-visual-points {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.login-visual-points li {
+  font-family: "Inter", sans-serif;
+  font-size: 14px;
+  color: #f0f0f0;
+  padding-left: 26px;
+  position: relative;
+}
+
+.login-visual-points li::before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  color: #c9a050;
+  font-weight: 700;
+}
+
+/* ---------- Right form panel ---------- */
+.login-form-side {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 400px;
+}
+
+.login-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 36px;
+}
+
+.login-logo-mark {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+}
+
+.login-logo h1 {
+  font-family: "Playfair Display", serif;
+  font-size: 22px;
+  color: #1b2a4a;
+  line-height: 1.1;
+}
+
+.login-tagline {
+  font-family: "Inter", sans-serif;
+  font-size: 12px;
+  color: #c9a050;
+  letter-spacing: 0.3px;
+}
+
+.login-title {
+  font-family: "Playfair Display", serif;
+  font-size: 30px;
+  color: #1b2a4a;
+  margin-bottom: 6px;
+}
+
+.login-subtitle {
+  font-family: "Inter", sans-serif;
+  font-size: 14px;
+  color: #777;
+  margin-bottom: 30px;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.login-label {
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1b2a4a;
+  margin-bottom: 6px;
+  margin-top: 16px;
+}
+
+.login-label:first-of-type {
+  margin-top: 0;
+}
+
+.login-input {
+  font-family: "Inter", sans-serif;
+  font-size: 14px;
+  padding: 13px 16px;
+  border-radius: 10px;
+  border: 1px solid #e6ddd0;
+  background: #ffffff;
+  color: #1b2a4a;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.login-input::placeholder {
+  color: #a9a9a9;
+}
+
+.login-input:focus {
+  border-color: #c9a050;
+  box-shadow: 0 0 0 3px rgba(201, 160, 80, 0.15);
+}
+
+.login-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 18px;
+}
+
+.login-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  color: #777;
+  cursor: pointer;
+}
+
+.login-checkbox input {
+  accent-color: #c9a050;
+  width: 15px;
+  height: 15px;
+}
+
+.login-link {
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  color: #c9a050;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.login-link:hover {
+  text-decoration: underline;
+}
+
+.login-link-strong {
+  font-weight: 700;
+}
+
+.login-btn {
+  margin-top: 26px;
+  background: #1b2a4a;
+  color: #ffffff;
+  font-family: "Inter", sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 14px 20px;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 0.25s ease, transform 0.2s ease, box-shadow 0.25s ease;
+}
+
+.login-btn:hover:not(:disabled) {
+  background: #24365e;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(27, 42, 74, 0.25);
+}
+
+.login-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.login-btn-arrow {
+  transition: transform 0.25s ease;
+}
+
+.login-btn:hover:not(:disabled) .login-btn-arrow {
+  transform: translateX(4px);
+}
+
+.login-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 28px 0 20px;
+  font-family: "Inter", sans-serif;
+  font-size: 12px;
+  color: #a9a9a9;
+}
+
+.login-divider::before,
+.login-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #e6ddd0;
+}
+
+.login-social-row {
+  display: flex;
+  gap: 12px;
+}
+
+.login-social-btn {
+  flex: 1;
+  padding: 11px;
+  border-radius: 10px;
+  border: 1px solid #e6ddd0;
+  background: #ffffff;
+  color: #1b2a4a;
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.login-social-btn:hover {
+  border-color: #c9a050;
+  background: #fdf3e0;
+}
+
+.login-footer-text {
+  margin-top: 26px;
+  text-align: center;
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  color: #777;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 900px) {
+  .login-page {
+    grid-template-columns: 1fr;
+  }
+  .login-visual {
+    display: none;
+  }
+  .login-form-side {
+    padding: 60px 24px;
+  }
+}
