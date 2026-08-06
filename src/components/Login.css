@@ -1,25 +1,34 @@
 /* ===== Login Page — HumanGrid theme ===== */
 
 .login-page {
+<<<<<<< HEAD
   animation: fadeIn 0.5s ease;
   min-height: 100vh;
   display: grid;
   grid-template-columns: 1fr 1fr;
   background: #fdfaf5;
 }
+=======
+    animation: fadeIn 0.5s ease;
+
+>>>>>>> d3460f57061ddae741aa959e40a4f59a888cd63b
 
 @keyframes fadeIn {
   from {
     opacity: 0;
     transform: translateY(15px);
   }
+<<<<<<< HEAD
 
+=======
+>>>>>>> d3460f57061ddae741aa959e40a4f59a888cd63b
   to {
     opacity: 1;
     transform: translateY(0);
   }
 }
 
+<<<<<<< HEAD
 /* ---------- Left visual panel ---------- */
 
 .login-visual {
@@ -31,6 +40,14 @@
     #1b2a4a 100%
   );
 }
+=======
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: #fdfaf5;
+}
+
+>>>>>>> d3460f57061ddae741aa959e40a4f59a888cd63b
 /* ---------- Left visual panel ---------- */
 .login-visual {
   position: relative;
