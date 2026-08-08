@@ -1,5 +1,5 @@
 import { Routes, Route } from "react-router-dom";
-
+import AIChat from "./pages/AIChat";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
@@ -17,6 +17,7 @@ function App() {
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/sos" element={<SOS />} />
       <Route path="/map" element={<Map />} />
+      <Route path="/ai" element={<AIChat />} />
     </Routes>
   );
 }
