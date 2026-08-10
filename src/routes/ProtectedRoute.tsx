@@ -1,14 +1,13 @@
-import type { ReactNode } from 'react';
-import { Navigate } from 'react-router-dom';
-import { useAuth } from '@/context/AuthContext';
-import { isSupabaseConfigured } from '@/lib/supabaseClient';
+import type { ReactNode } from "react";
+import { Navigate } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
 
-export function ProtectedRoute({ children }: { children: ReactNode }) {
+export function ProtectedRoute({
+  children,
+}: {
+  children: ReactNode;
+}) {
   const { user, loading } = useAuth();
-
-  // In demo mode (no Supabase configured) we let visitors through so the
-  // product can still be explored end-to-end without live credentials.
-  if (!isSupabaseConfigured) return <>{children}</>;
 
   if (loading) {
     return (
@@ -18,7 +17,9 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
     );
   }
 
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
 
   return <>{children}</>;
 }

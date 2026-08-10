@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import logo from "../assets/logo/humangrid-logo.png";
 import { useState } from "react";
-import { signIn } from "../services/auth";
+import { signIn, signInWithGoogle } from "../services/auth";
 import "./Login.css";
 
 const Login = () => {
@@ -116,9 +116,29 @@ navigate("/dashboard");
           </div>
 
           <div className="login-social-row">
-            <button className="login-social-btn" type="button">
-              Google
-            </button>
+            <button
+  className="login-social-btn"
+  type="button"
+  onClick={async () => {
+    try {
+      setLoading(true);
+
+      const { error } = await signInWithGoogle();
+
+      if (error) {
+        alert(error.message);
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Google login failed.");
+    } finally {
+      setLoading(false);
+    }
+  }}
+  disabled={loading}
+>
+  Google
+</button>
             <button className="login-social-btn" type="button">
               Phone OTP
             </button>

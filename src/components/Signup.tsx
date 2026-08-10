@@ -71,13 +71,16 @@ const Signup: React.FC = () => {
       if (authError) {
         setError(authError.message);
       } else if (data.user) {
-        setSuccess('Account created successfully! Please check your email to verify your account, then you will be redirected.');
-        // In a real app, you might wait for email verification or handle it differently.
-        // For demonstration, navigate after a short delay or directly if auto-login is enabled.
-        setTimeout(() => {
-          navigate('/dashboard'); // Navigate to dashboard on success
-        }, 3000);
-      } else if (data.session === null && data.user === null) {
+  setSuccess(
+    "Account created successfully! Please check your email for the verification code."
+  );
+
+  setTimeout(() => {
+    navigate("/verify-otp", {
+      state: { email },
+    });
+  }, 1000);
+} else if (data.session === null && data.user === null) {
         // This case usually means successful signup but email verification is pending.
         setSuccess('Account created! Please check your email to verify your account.');
       }
