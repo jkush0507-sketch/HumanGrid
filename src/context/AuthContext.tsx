@@ -5,7 +5,12 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { Session, User } from "@supabase/supabase-js";
+
+import type {
+  Session,
+  User,
+} from "@supabase/supabase-js";
+
 import { supabase } from "@/lib/supabase";
 
 interface AuthContextValue {
@@ -26,40 +31,43 @@ interface AuthContextValue {
 
   signInWithGoogle: () => Promise<void>;
 
-  signInWithPhone: (phone: string) => Promise<void>;
-
-  verifyPhoneOtp: (
-    phone: string,
-    token: string
+  sendPasswordReset: (
+    email: string
   ) => Promise<void>;
-
-  sendPasswordReset: (email: string) => Promise<void>;
 
   signOut: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextValue | undefined>(
-  undefined
-);
+const AuthContext =
+  createContext<AuthContextValue | undefined>(
+    undefined
+  );
 
 export function AuthProvider({
   children,
 }: {
   children: ReactNode;
 }) {
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [session, setSession] =
+    useState<Session | null>(null);
+
+  const [loading, setLoading] =
+    useState(true);
 
   useEffect(() => {
     let mounted = true;
 
     const initializeAuth = async () => {
-      const { data, error } = await supabase.auth.getSession();
+      const { data, error } =
+        await supabase.auth.getSession();
 
       if (!mounted) return;
 
       if (error) {
-        console.error("Failed to get session:", error);
+        console.error(
+          "Failed to get session:",
+          error
+        );
       }
 
       setSession(data.session);
@@ -90,10 +98,13 @@ export function AuthProvider({
     session,
     loading,
 
-    async signInWithPassword(email, password) {
+    async signInWithPassword(
+      email,
+      password
+    ) {
       const { error } =
         await supabase.auth.signInWithPassword({
-          email,
+          email: email.trim().toLowerCase(),
           password,
         });
 
@@ -107,15 +118,16 @@ export function AuthProvider({
       password,
       fullName
     ) {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName,
+      const { error } =
+        await supabase.auth.signUp({
+          email: email.trim().toLowerCase(),
+          password,
+          options: {
+            data: {
+              full_name: fullName.trim(),
+            },
           },
-        },
-      });
+        });
 
       if (error) {
         throw error;
@@ -128,32 +140,8 @@ export function AuthProvider({
           provider: "google",
           options: {
             redirectTo:
-              window.location.origin + "/dashboard",
+              `${window.location.origin}/dashboard`,
           },
-        });
-
-      if (error) {
-        throw error;
-      }
-    },
-
-    async signInWithPhone(phone) {
-      const { error } =
-        await supabase.auth.signInWithOtp({
-          phone,
-        });
-
-      if (error) {
-        throw error;
-      }
-    },
-
-    async verifyPhoneOtp(phone, token) {
-      const { error } =
-        await supabase.auth.verifyOtp({
-          phone,
-          token,
-          type: "sms",
         });
 
       if (error) {
@@ -164,10 +152,10 @@ export function AuthProvider({
     async sendPasswordReset(email) {
       const { error } =
         await supabase.auth.resetPasswordForEmail(
-          email,
+          email.trim().toLowerCase(),
           {
             redirectTo:
-              window.location.origin + "/login",
+              `${window.location.origin}/login`,
           }
         );
 
@@ -177,7 +165,8 @@ export function AuthProvider({
     },
 
     async signOut() {
-      const { error } = await supabase.auth.signOut();
+      const { error } =
+        await supabase.auth.signOut();
 
       if (error) {
         throw error;

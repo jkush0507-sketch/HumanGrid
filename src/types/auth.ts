@@ -1,32 +1,106 @@
-export type UserType = "primary" | "secondary";
+import { supabase } from "../lib/supabase";
 
-export interface UserProfile {
-  id: string;
-  user_id: string;
-  full_name: string;
-  email: string;
-  mobile: string;
-  user_type: UserType;
-  created_at: string;
-  updated_at: string;
-}
+// ===============================
+// EMAIL + PASSWORD SIGN UP
+// ===============================
+export const signUp = async (
+  email: string,
+  password: string,
+  fullName: string
+) => {
+  const { data, error } = await supabase.auth.signUp({
+    email: email.trim().toLowerCase(),
+    password,
+    options: {
+      data: {
+        full_name: fullName.trim(),
+      },
+    },
+  });
 
-export interface AuthState {
-  user: any | null;
-  profile: UserProfile | null;
-  isAuthenticated: boolean;
-  loading: boolean;
-}
+  return { data, error };
+};
 
-export interface SignupData {
-  full_name: string;
-  mobile: string;
-  email: string;
-  password: string;
-  user_type: UserType;
-}
+// ===============================
+// EMAIL + PASSWORD LOGIN
+// ===============================
+export const signIn = async (
+  email: string,
+  password: string
+) => {
+  const { data, error } =
+    await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
+    });
 
-export interface LoginData {
-  email: string;
-  password: string;
-}
+  return { data, error };
+};
+
+// ===============================
+// GOOGLE LOGIN / SIGNUP
+// ===============================
+export const signInWithGoogle = async () => {
+  const { data, error } =
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/dashboard`,
+      },
+    });
+
+  return { data, error };
+};
+
+// ===============================
+// RESEND EMAIL OTP
+// ===============================
+export const resendEmailOtp = async (email: string) => {
+  const { data, error } =
+    await supabase.auth.signInWithOtp({
+      email: email.trim().toLowerCase(),
+    });
+
+  return { data, error };
+};
+
+// ===============================
+// VERIFY EMAIL OTP
+// ===============================
+export const verifyEmailOtp = async (
+  email: string,
+  token: string
+) => {
+  const { data, error } =
+    await supabase.auth.verifyOtp({
+      email: email.trim().toLowerCase(),
+      token,
+      type: "email",
+    });
+
+  return { data, error };
+};
+
+// ===============================
+// PASSWORD RESET
+// ===============================
+export const resetPassword = async (email: string) => {
+  const { data, error } =
+    await supabase.auth.resetPasswordForEmail(
+      email.trim().toLowerCase(),
+      {
+        redirectTo: `${window.location.origin}/login`,
+      }
+    );
+
+  return { data, error };
+};
+
+// ===============================
+// SIGN OUT
+// ===============================
+export const signOut = async () => {
+  const { error } = await supabase.auth.signOut();
+
+  return { error };
+};

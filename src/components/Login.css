@@ -382,13 +382,11 @@
   background: #e5e0d8;
 }
 
-/* =========================
-   GOOGLE / PHONE OTP
-========================= */
+/* GOOGLE LOGIN */
 
 .login-social-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 11px;
 }
 
@@ -476,8 +474,8 @@
   }
 
   .login-social-row {
-    grid-template-columns: 1fr;
-  }
+  grid-template-columns: 1fr;
+}
 
   .login-row {
     align-items: flex-start;

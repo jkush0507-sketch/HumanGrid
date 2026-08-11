@@ -143,33 +143,6 @@ body {
   text-decoration: underline;
 }
 
-/* Phone OTP button */
-.form-group .phone-otp-button {
-  position: absolute;
-  right: 10px;
-  top: 60%; /* Adjust based on label and input height */
-  transform: translateY(-50%);
-  background: none;
-  border: 1px solid var(--primary-color);
-  color: var(--primary-color);
-  padding: 6px 10px;
-  border-radius: 4px;
-  font-size: 0.85em;
-  cursor: pointer;
-  transition: background-color 0.2s, color 0.2s;
-}
-
-.form-group .phone-otp-button:hover:not(:disabled) {
-  background-color: var(--primary-color);
-  color: var(--card-background-color);
-}
-
-.form-group .phone-otp-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-
 /* Checkbox styling */
 .checkbox-group {
   display: flex;
