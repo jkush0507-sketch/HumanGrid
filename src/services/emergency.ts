@@ -4,159 +4,294 @@ import type {
   NearbyService,
   ServiceCardDefinition,
   ServiceMode,
-} from '@/types';
-import { distanceKm } from './location';
+} from "@/types";
+import { distanceKm } from "./location";
 
 export const SERVICE_CARDS: ServiceCardDefinition[] = [
   {
-    mode: 'hospital',
-    title: 'Hospital Assistance',
-    description: 'Medical emergencies, injuries, and urgent care triage.',
-    icon: 'Cross',
+    mode: "hospital",
+    title: "Hospital Assistance",
+    description: "Medical emergencies, injuries, and urgent care triage.",
+    icon: "Cross",
   },
   {
-    mode: 'blood_bank',
-    title: 'Blood Bank',
-    description: 'Locate blood banks and request a specific blood group fast.',
-    icon: 'Droplet',
+    mode: "blood_bank",
+    title: "Blood Bank",
+    description: "Locate blood banks and request a specific blood group fast.",
+    icon: "Droplet",
   },
   {
-    mode: 'police',
-    title: 'Police Help',
-    description: 'Report crimes, theft, or request law enforcement support.',
-    icon: 'Shield',
+    mode: "police",
+    title: "Police Help",
+    description: "Report crimes, theft, or request law-enforcement support.",
+    icon: "Shield",
   },
   {
-    mode: 'ambulance',
-    title: 'Ambulance',
-    description: 'Dispatch the nearest available ambulance to your location.',
-    icon: 'Siren',
+    mode: "ambulance",
+    title: "Ambulance",
+    description: "Prioritize urgent medical transport and escalation.",
+    icon: "Siren",
   },
   {
-    mode: 'women_safety',
-    title: 'Women Safety',
-    description: 'Immediate safety support, trusted contacts, and SOS routing.',
-    icon: 'ShieldAlert',
+    mode: "women_safety",
+    title: "Women Safety",
+    description: "Immediate safety support, trusted contacts, and escalation.",
+    icon: "ShieldAlert",
   },
   {
-    mode: 'child_safety',
-    title: 'Child Safety',
-    description: 'Missing child alerts and coordinated emergency response.',
-    icon: 'HeartHandshake',
+    mode: "child_safety",
+    title: "Child Safety",
+    description: "Support for a missing or endangered child.",
+    icon: "HeartHandshake",
   },
   {
-    mode: 'food_support',
-    title: 'Food Support',
-    description: 'Community kitchens, NGOs, and food relief near you.',
-    icon: 'Soup',
+    mode: "food_support",
+    title: "Food Support",
+    description: "Community kitchens, NGOs, and food relief near you.",
+    icon: "Soup",
   },
   {
-    mode: 'shelter',
-    title: 'Shelter Support',
-    description: 'Find temporary shelter and safe housing options nearby.',
-    icon: 'Home',
+    mode: "shelter",
+    title: "Shelter Support",
+    description: "Find temporary shelter and safe housing options nearby.",
+    icon: "Home",
+  },
+  {
+    mode: "general_emergency",
+    title: "General Emergency",
+    description: "Guidance for an emergency that does not fit another category.",
+    icon: "AlertTriangle",
   },
 ];
 
 export function getServiceCard(mode: ServiceMode): ServiceCardDefinition {
-  const card = SERVICE_CARDS.find((c) => c.mode === mode);
-  if (!card) throw new Error(`Unknown service mode: ${mode}`);
+  const card = SERVICE_CARDS.find((serviceCard) => serviceCard.mode === mode);
+
+  if (!card) {
+    throw new Error(`Unknown service mode: ${mode}`);
+  }
+
   return card;
 }
 
-/** Universal + mode-specific quick-dial contacts (India defaults, override per deployment). */
-export function getContactsForMode(mode: ServiceMode): EmergencyContactSuggestion[] {
+/**
+ * Returns emergency contact suggestions for the selected mode.
+ *
+ * These are deployment defaults for India and should be verified for the
+ * actual deployment region before production release.
+ */
+export function getContactsForMode(
+  mode: ServiceMode
+): EmergencyContactSuggestion[] {
   const universal: EmergencyContactSuggestion[] = [
-    { label: 'National Emergency Number', value: '112' },
+    {
+      label: "National Emergency Number",
+      value: "112",
+    },
   ];
 
-  const byMode: Partial<Record<ServiceMode, EmergencyContactSuggestion[]>> = {
-    hospital: [{ label: 'Ambulance', value: '108' }],
-    ambulance: [{ label: 'Ambulance', value: '108' }],
-    police: [{ label: 'Police', value: '100' }],
-    women_safety: [{ label: 'Women Helpline', value: '1091' }],
-    child_safety: [{ label: 'Child Helpline', value: '1098' }],
-    blood_bank: [{ label: 'Blood Bank Helpline', value: '104' }],
+  const byMode: Partial<
+    Record<ServiceMode, EmergencyContactSuggestion[]>
+  > = {
+    hospital: [
+      {
+        label: "Ambulance",
+        value: "108",
+      },
+    ],
+    ambulance: [
+      {
+        label: "Ambulance",
+        value: "108",
+      },
+    ],
+    police: [
+      {
+        label: "Police",
+        value: "100",
+      },
+    ],
+    women_safety: [
+      {
+        label: "Women Helpline",
+        value: "1091",
+      },
+    ],
+    child_safety: [
+      {
+        label: "Child Helpline",
+        value: "1098",
+      },
+    ],
+    blood_bank: [
+      {
+        label: "Blood Bank Helpline",
+        value: "104",
+      },
+    ],
   };
 
   return [...universal, ...(byMode[mode] ?? [])];
 }
 
 /**
- * Returns nearby resources for the given mode and origin.
+ * Current implementation returns deterministic mock resources around the
+ * user's location. These are not verified live providers.
  *
- * NOTE: This is a deterministic mock generator so the UI is fully functional
- * out of the box. In production, replace the body of this function with a
- * Supabase query (e.g. a `facilities` table with PostGIS distance ordering)
- * or a Google Places / Overpass API call, keeping the same return shape.
+ * Replace this function later with a Supabase facilities query or verified
+ * maps/provider API while keeping the same NearbyService return shape.
  */
 export async function getNearbyServices(
   mode: ServiceMode,
   origin: Coordinates
 ): Promise<NearbyService[]> {
-  const templates = NEARBY_TEMPLATES[mode] ?? NEARBY_TEMPLATES.hospital;
+  const templates =
+    NEARBY_TEMPLATES[mode] ?? NEARBY_TEMPLATES.general_emergency;
 
-  const services = templates.map((t, index) => {
-    // Spread mock points deterministically around the origin so distances feel real.
+  const services = templates.map((template, index) => {
     const angle = (index / templates.length) * 2 * Math.PI;
     const radiusDeg = 0.01 + index * 0.006;
+
     const point: Coordinates = {
       lat: origin.lat + radiusDeg * Math.cos(angle),
       lng: origin.lng + radiusDeg * Math.sin(angle),
     };
+
     return {
-      ...t,
-      id: `${mode}-${index}`,
+      ...template,
+      id: `${mode}-mock-${index}`,
       lat: point.lat,
       lng: point.lng,
       distanceKm: Math.round(distanceKm(origin, point) * 10) / 10,
+      dataSource: "mock",
     } satisfies NearbyService;
   });
 
-  return services.sort((a, b) => a.distanceKm - b.distanceKm);
+  return services.sort((first, second) => {
+    return first.distanceKm - second.distanceKm;
+  });
 }
 
-type NearbyTemplate = Omit<NearbyService, 'id' | 'lat' | 'lng' | 'distanceKm'>;
+type NearbyTemplate = Omit<
+  NearbyService,
+  "id" | "lat" | "lng" | "distanceKm" | "dataSource"
+>;
 
 const NEARBY_TEMPLATES: Record<ServiceMode, NearbyTemplate[]> = {
   hospital: [
-    { name: 'City General Hospital', availability: 'ER open · 24/7', contact: '+91 100 200 3001' },
-    { name: 'St. Mary\u2019s Medical Center', availability: '6 ICU beds free', contact: '+91 100 200 3002' },
-    { name: 'Sunrise Multispecialty Hospital', availability: 'ER open · 24/7', contact: '+91 100 200 3003' },
+    {
+      name: "Demo hospital result",
+      availability: "Verify availability before traveling",
+      contact: "112",
+    },
+    {
+      name: "Demo medical center result",
+      availability: "Verify availability before traveling",
+      contact: "112",
+    },
   ],
+
   blood_bank: [
-    { name: 'Red Cross Blood Bank', availability: 'In stock', contact: '+91 100 200 4001' },
-    { name: 'LifeLine Blood Center', availability: 'Low stock \u2014 call ahead', contact: '+91 100 200 4002' },
-    { name: 'City Hospital Blood Bank', availability: 'In stock', contact: '+91 100 200 4003' },
+    {
+      name: "Demo blood-bank result",
+      availability: "Verify stock before traveling",
+      contact: "104",
+    },
+    {
+      name: "Demo blood-center result",
+      availability: "Verify stock before traveling",
+      contact: "104",
+    },
   ],
+
   police: [
-    { name: 'Central Police Station', availability: 'Open · 24/7', contact: '100' },
-    { name: 'North District Police Outpost', availability: 'Open · 24/7', contact: '+91 100 200 5002' },
-    { name: 'Community Police Cell', availability: 'Open until 10 PM', contact: '+91 100 200 5003' },
+    {
+      name: "Demo police-service result",
+      availability: "Verify location before traveling",
+      contact: "100",
+    },
+    {
+      name: "Demo police-support result",
+      availability: "Verify location before traveling",
+      contact: "100",
+    },
   ],
+
   ambulance: [
-    { name: 'HumanGrid Rapid Response Unit', availability: 'Available now', contact: '108' },
-    { name: 'City Ambulance Service', availability: 'Available now', contact: '+91 100 200 6002' },
-    { name: 'Private Paramedic Unit', availability: '4 min ETA', contact: '+91 100 200 6003' },
+    {
+      name: "Demo ambulance result",
+      availability: "Call emergency services directly",
+      contact: "108",
+    },
+    {
+      name: "Demo medical transport result",
+      availability: "Call emergency services directly",
+      contact: "108",
+    },
   ],
+
   women_safety: [
-    { name: 'Central Police Station', availability: 'Open · 24/7', contact: '100' },
-    { name: 'Women Safety Cell', availability: 'Open · 24/7', contact: '1091' },
-    { name: 'North District Police Outpost', availability: 'Open · 24/7', contact: '+91 100 200 5002' },
+    {
+      name: "Demo women-safety result",
+      availability: "Verify location before traveling",
+      contact: "1091",
+    },
+    {
+      name: "Demo police-support result",
+      availability: "Verify location before traveling",
+      contact: "100",
+    },
   ],
+
   child_safety: [
-    { name: 'Central Police Station', availability: 'Open · 24/7', contact: '100' },
-    { name: 'Child Welfare Committee Office', availability: 'Open · 24/7', contact: '1098' },
-    { name: 'North District Police Outpost', availability: 'Open · 24/7', contact: '+91 100 200 5002' },
+    {
+      name: "Demo child-safety result",
+      availability: "Contact authorities immediately",
+      contact: "1098",
+    },
+    {
+      name: "Demo police-support result",
+      availability: "Contact authorities immediately",
+      contact: "100",
+    },
   ],
+
   food_support: [
-    { name: 'Community Kitchen \u2014 Central', availability: 'Serving now', contact: '+91 100 200 7001' },
-    { name: 'Helping Hands NGO', availability: 'Open until 8 PM', contact: '+91 100 200 7002' },
-    { name: 'Shelter Home Meal Program', availability: 'Serving now', contact: '+91 100 200 7003' },
+    {
+      name: "Demo community-food result",
+      availability: "Verify operating hours",
+      contact: "112",
+    },
+    {
+      name: "Demo food-support result",
+      availability: "Verify availability",
+      contact: "112",
+    },
   ],
+
   shelter: [
-    { name: 'City Emergency Shelter', availability: '14 beds free', contact: '+91 100 200 8001' },
-    { name: 'Hope Foundation Shelter Home', availability: '5 beds free', contact: '+91 100 200 8002' },
-    { name: 'Community Relief Center', availability: '20 beds free', contact: '+91 100 200 8003' },
+    {
+      name: "Demo shelter result",
+      availability: "Verify space before traveling",
+      contact: "112",
+    },
+    {
+      name: "Demo relief-center result",
+      availability: "Verify space before traveling",
+      contact: "112",
+    },
+  ],
+
+  general_emergency: [
+    {
+      name: "General emergency support",
+      availability: "Call 112 for immediate danger",
+      contact: "112",
+    },
+    {
+      name: "Local emergency assistance",
+      availability: "Verify provider details",
+      contact: "112",
+    },
   ],
 };

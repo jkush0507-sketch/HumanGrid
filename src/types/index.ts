@@ -3,33 +3,42 @@
 // ---------------------------------------------------------------------------
 
 export type ServiceMode =
-  | 'hospital'
-  | 'police'
-  | 'blood_bank'
-  | 'shelter'
-  | 'women_safety'
-  | 'child_safety'
-  | 'food_support'
-  | 'ambulance';
+  | "hospital"
+  | "blood_bank"
+  | "police"
+  | "ambulance"
+  | "women_safety"
+  | "child_safety"
+  | "food_support"
+  | "shelter"
+  | "general_emergency";
 
-export type Severity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+export type Severity = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+
+export type AnalysisSource = "gemini" | "fallback";
 
 export interface ServiceCardDefinition {
   mode: ServiceMode;
   title: string;
   description: string;
-  icon: string; // lucide-react icon name
+  icon: string;
 }
 
 export interface NearbyService {
   id: string;
   name: string;
   distanceKm: number;
-  availability: string; // e.g. "Open now", "12 beds free", "In stock"
+  availability: string;
   contact: string;
   address?: string;
   lat?: number;
   lng?: number;
+
+  /**
+   * The current emergency service generator uses demo data.
+   * This field prevents the UI from presenting demo services as verified.
+   */
+  dataSource?: "mock" | "verified";
 }
 
 export interface Coordinates {
@@ -38,32 +47,38 @@ export interface Coordinates {
   accuracy?: number;
 }
 
-/**
- * The single structured shape every HumanGrid AI Core response is coerced into,
- * regardless of which mode produced it. Mirrors the "AI output format" contract.
- */
 export interface EmergencyAnalysis {
   problem: string;
   category: string;
   severity: Severity;
   required_services: string[];
   action_steps: string[];
+  immediate_actions?: string[];
+
   contacts: EmergencyContactSuggestion[];
   nearby_services: NearbyService[];
   mode: ServiceMode;
-  // Mode-specific extras (present only when relevant)
+
+  emergency_type?: string;
+  summary?: string;
+  recommended_service?: string;
+  why?: string;
+  warnings?: string[];
+  next_steps?: string[];
+
   blood_group?: string;
   danger_level?: string;
+  source?: AnalysisSource;
 }
 
 export interface EmergencyContactSuggestion {
-  label: string; // e.g. "National Emergency Number"
-  value: string; // e.g. "112"
+  label: string;
+  value: string;
 }
 
 export interface ChatMessage {
   id: string;
-  role: 'user' | 'assistant' | 'system';
+  role: "user" | "assistant" | "system";
   content: string;
   analysis?: EmergencyAnalysis;
   createdAt: string;
@@ -87,10 +102,10 @@ export interface SavedLocation {
 }
 
 export type NotificationType =
-  | 'request_accepted'
-  | 'volunteer_assigned'
-  | 'ambulance_dispatched'
-  | 'emergency_completed';
+  | "request_accepted"
+  | "volunteer_assigned"
+  | "ambulance_dispatched"
+  | "emergency_completed";
 
 export interface AppNotification {
   id: string;
@@ -107,5 +122,5 @@ export interface RequestHistoryItem {
   problem: string;
   severity: Severity;
   createdAt: string;
-  status: 'open' | 'in_progress' | 'resolved';
+  status: "open" | "in_progress" | "resolved";
 }
