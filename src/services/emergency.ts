@@ -4,7 +4,7 @@ import type {
   NearbyService,
   ServiceCardDefinition,
   ServiceMode,
-} from '@/types';
+} from '../types';
 import { distanceKm } from './location';
 
 export const SERVICE_CARDS: ServiceCardDefinition[] = [

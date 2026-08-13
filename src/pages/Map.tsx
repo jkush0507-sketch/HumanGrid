@@ -1,5 +1,5 @@
 import { Building2, Shield, Droplet } from 'lucide-react';
-import DashboardHeader from '../components/Layout/DashboardHeader';
+import DashboardHeader from '../components/Layout/Dashboardheader';
 import { findNearby } from '../utils/findNearby';
 
 const services = [
