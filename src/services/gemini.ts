@@ -1,17 +1,8 @@
-import type {
-  Coordinates,
-  EmergencyAnalysis,
-  ServiceMode,
-  Severity,
-} from "@/types";
-import {
-  getContactsForMode,
-  getNearbyServices,
-} from "./emergency";
+import type { Coordinates, EmergencyAnalysis, ServiceMode, Severity } from "@/types";
+import { getContactsForMode, getNearbyServices } from "./emergency";
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
 const GEMINI_MODEL = (import.meta.env.VITE_GEMINI_MODEL as string | undefined) || "gemini-1.5-flash";
-
 export const isGeminiConfigured = Boolean(GEMINI_API_KEY);
 
 const GEMINI_ENDPOINT = (model: string): string =>
@@ -28,8 +19,6 @@ const MODE_INSTRUCTIONS: Record<ServiceMode, string> = {
   shelter: `You are HumanGrid AI in shelter-support mode. Help identify who needs safe shelter, urgency, accessibility needs, and safety concerns.`,
   general_emergency: `You are HumanGrid AI in general-emergency mode. Classify the situation and prioritize immediate safety.`,
 };
-
-const RESPONSE_SCHEMA_HINT = `Return only one valid JSON object. Do not return markdown, code fences, or explanatory text outside the JSON object.`;
 
 interface RawGeminiAnalysis {
   emergency_type?: string;
@@ -63,23 +52,10 @@ interface AnalysisResult {
   source: "gemini" | "fallback";
 }
 
-export async function analyzeEmergency(
-  mode: ServiceMode,
-  userInput: string,
-  origin: Coordinates | null
-): Promise<EmergencyAnalysis> {
+export async function analyzeEmergency(mode: ServiceMode, userInput: string, origin: Coordinates | null): Promise<EmergencyAnalysis> {
   const cleanInput = userInput.trim();
-
-  const result = isGeminiConfigured
-    ? await callGeminiSafely(mode, cleanInput)
-    : {
-        raw: fallbackAnalysis(mode, cleanInput),
-        source: "fallback" as const,
-      };
-
-  const nearbyServices = origin
-    ? await getNearbyServices(mode, origin)
-    : [];
+  const result = isGeminiConfigured ? await callGeminiSafely(mode, cleanInput) : { raw: fallbackAnalysis(mode, cleanInput), source: "fallback" as const };
+  const nearbyServices = origin ? await getNearbyServices(mode, origin) : [];
 
   return {
     problem: result.raw.problem ?? "Emergency reported.",
@@ -103,91 +79,45 @@ export async function analyzeEmergency(
   };
 }
 
-async function callGeminiSafely(
-  mode: ServiceMode,
-  userInput: string
-): Promise<AnalysisResult> {
+async function callGeminiSafely(mode: ServiceMode, userInput: string): Promise<AnalysisResult> {
   try {
     const raw = await callGemini(mode, userInput);
-    return {
-      raw: sanitizeAnalysis(raw, mode, userInput),
-      source: "gemini",
-    };
+    return { raw: sanitizeAnalysis(raw, mode, userInput), source: "gemini" };
   } catch {
-    return {
-      raw: fallbackAnalysis(mode, userInput),
-      source: "fallback",
-    };
+    return { raw: fallbackAnalysis(mode, userInput), source: "fallback" };
   }
 }
 
-async function callGemini(
-  mode: ServiceMode,
-  userInput: string
-): Promise<RawGeminiAnalysis> {
+async function callGemini(mode: ServiceMode, userInput: string): Promise<RawGeminiAnalysis> {
   const body = {
-    system_instruction: {
-      parts: [
-        {
-          text: `${MODE_INSTRUCTIONS[mode]}\n${RESPONSE_SCHEMA_HINT}`,
-        },
-      ],
-    },
-    contents: [
-      {
-        role: "user",
-        parts: [{ text: userInput }],
-      },
-    ],
-    generationConfig: {
-      temperature: 0.2,
-      responseMimeType: "application/json",
-    },
+    system_instruction: { parts: [{ text: `${MODE_INSTRUCTIONS[mode]}\nReturn only one valid JSON object.` }] },
+    contents: [{ role: "user", parts: [{ text: userInput }] }],
+    generationConfig: { temperature: 0.2, responseMimeType: "application/json" },
   };
 
   const response = await fetch(GEMINI_ENDPOINT(GEMINI_MODEL), {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
 
-  if (!response.ok) {
-    throw new Error(`Gemini request failed: ${response.status}`);
-  }
+  if (!response.ok) throw new Error(`Gemini request failed: ${response.status}`);
 
   const data = (await response.json()) as GeminiResponseData;
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-
-  if (!text) {
-    throw new Error("Gemini returned an empty response");
-  }
+  if (!text) throw new Error("Gemini returned an empty response");
 
   const parsed: unknown = JSON.parse(stripCodeFences(text));
-
-  if (!isRecord(parsed)) {
-    throw new Error("Gemini returned an invalid response");
-  }
+  if (!isRecord(parsed)) throw new Error("Gemini returned an invalid response");
 
   return parsed as RawGeminiAnalysis;
 }
 
-function sanitizeAnalysis(
-  raw: RawGeminiAnalysis,
-  mode: ServiceMode,
-  userInput: string
-): RawGeminiAnalysis {
+function sanitizeAnalysis(raw: RawGeminiAnalysis, mode: ServiceMode, userInput: string): RawGeminiAnalysis {
   const severity = isSeverity(raw.severity) ? raw.severity : "MEDIUM";
   const immediateActions = normalizeStrings(raw.immediate_actions);
   const actionSteps = normalizeStrings(raw.action_steps);
-
-  const safeActions =
-    immediateActions.length > 0
-      ? immediateActions
-      : actionSteps.length > 0
-      ? actionSteps
-      : defaultActions(severity);
+  const safeActions = immediateActions.length > 0 ? immediateActions : actionSteps.length > 0 ? actionSteps : defaultActions(severity);
 
   return {
     emergency_type: raw.emergency_type ?? defaultEmergencyType(mode),
@@ -207,10 +137,7 @@ function sanitizeAnalysis(
   };
 }
 
-function fallbackAnalysis(
-  mode: ServiceMode,
-  userInput: string
-): RawGeminiAnalysis {
+function fallbackAnalysis(mode: ServiceMode, userInput: string): RawGeminiAnalysis {
   const text = userInput.toLowerCase();
   const critical = /not breathing|cannot breathe|can't breathe|unconscious|severe bleeding|bleeding heavily|chest pain|heart attack|active fire|immediate danger|being attacked|child in danger/.test(text);
   const high = /accident|injured|assault|threat|unsafe|stolen|missing|violence|fire|flood|earthquake/.test(text);
@@ -236,86 +163,52 @@ function fallbackAnalysis(
 }
 
 function defaultActionsForMode(mode: ServiceMode, severity: Severity): string[] {
-  if (severity === "CRITICAL") {
-    return ["Contact local emergency services immediately.", "Move away from immediate danger if safe.", "Stay with the affected person if possible."];
-  }
-
+  if (severity === "CRITICAL") return ["Contact local emergency services immediately.", "Move away from immediate danger if safe.", "Stay with the affected person if possible."];
   switch (mode) {
-    case "hospital":
-      return ["Contact a medical professional or emergency service.", "Avoid unnecessary movement after serious injury.", "Monitor breathing and responsiveness."];
-    case "ambulance":
-      return ["Contact emergency services for transport.", "Stay in a safe and accessible location.", "Keep relevant medical information ready."];
-    case "police":
-      return ["Move to a safer location if possible.", "Contact local police or emergency authorities.", "Share your location with a trusted person."];
-    case "women_safety":
-      return ["Move to a public or well-lit location if possible.", "Alert a trusted person.", "Contact emergency authorities if in immediate danger."];
-    case "child_safety":
-      return ["Contact responsible adults and authorities immediately.", "Share a recent photo and last known location.", "Avoid unsafe searching or confrontation."];
-    case "blood_bank":
-      return ["Confirm blood group and quantity with the hospital.", "Contact a verified blood bank or hospital.", "Keep hospital and contact details ready."];
-    case "food_support":
-      return ["Confirm how many people need food.", "Contact a verified support organization.", "Share the collection or delivery location safely."];
-    case "shelter":
-      return ["Move to a safe location if in immediate danger.", "Contact a verified shelter or relief organization.", "Confirm availability before traveling."];
-    case "general_emergency":
-      return ["Move away from immediate danger if safe.", "Contact the appropriate local emergency service.", "Share your location with a trusted person."];
-    default:
-      return ["Contact local emergency or support services.", "Move to a safe location if necessary."];
+    case "hospital": return ["Contact a medical professional or emergency service.", "Avoid unnecessary movement after serious injury.", "Monitor breathing and responsiveness."];
+    case "ambulance": return ["Contact emergency services for transport.", "Stay in a safe and accessible location.", "Keep relevant medical information ready."];
+    case "police": return ["Move to a safer location if possible.", "Contact local police or emergency authorities.", "Share your location with a trusted person."];
+    case "women_safety": return ["Move to a public or well-lit location if possible.", "Alert a trusted person.", "Contact emergency authorities if in immediate danger."];
+    case "child_safety": return ["Contact responsible adults and authorities immediately.", "Share a recent photo and last known location.", "Avoid unsafe searching or confrontation."];
+    case "blood_bank": return ["Confirm blood group and quantity with the hospital.", "Contact a verified blood bank or hospital.", "Keep hospital and contact details ready."];
+    case "food_support": return ["Confirm how many people need food.", "Contact a verified support organization.", "Share the collection or delivery location safely."];
+    case "shelter": return ["Move to a safe location if in immediate danger.", "Contact a verified shelter or relief organization.", "Confirm availability before traveling."];
+    case "general_emergency": return ["Move away from immediate danger if safe.", "Contact the appropriate local emergency service.", "Share your location with a trusted person."];
+    default: return ["Contact local emergency or support services.", "Move to a safe location if necessary."];
   }
 }
 
 function defaultActions(severity: Severity): string[] {
-  return severity === "CRITICAL"
-    ? ["Contact local emergency services immediately.", "Move away from immediate danger if safe."]
-    : ["Contact an appropriate local support service.", "Move to a safe location if necessary."];
+  return severity === "CRITICAL" ? ["Contact local emergency services immediately.", "Move away from immediate danger if safe."] : ["Contact an appropriate local support service.", "Move to a safe location if necessary."];
 }
 
 function defaultEmergencyType(mode: ServiceMode): string {
   switch (mode) {
     case "hospital":
-    case "ambulance":
-      return "medical";
-    case "blood_bank":
-      return "blood_requirement";
-    case "police":
-      return "police";
-    case "women_safety":
-      return "women_safety";
-    case "child_safety":
-      return "child_safety";
-    case "food_support":
-      return "food_requirement";
-    case "shelter":
-      return "shelter_requirement";
-    case "general_emergency":
-      return "general";
-    default:
-      return "general";
+    case "ambulance": return "medical";
+    case "blood_bank": return "blood_requirement";
+    case "police": return "police";
+    case "women_safety": return "women_safety";
+    case "child_safety": return "child_safety";
+    case "food_support": return "food_requirement";
+    case "shelter": return "shelter_requirement";
+    case "general_emergency": return "general";
+    default: return "general";
   }
 }
 
 function defaultCategory(mode: ServiceMode): string {
   switch (mode) {
-    case "hospital":
-      return "Medical emergency";
-    case "blood_bank":
-      return "Blood requirement";
-    case "police":
-      return "Police or security emergency";
-    case "ambulance":
-      return "Medical transport";
-    case "women_safety":
-      return "Women safety concern";
-    case "child_safety":
-      return "Child safety concern";
-    case "food_support":
-      return "Food support request";
-    case "shelter":
-      return "Shelter support request";
-    case "general_emergency":
-      return "General emergency";
-    default:
-      return "General emergency";
+    case "hospital": return "Medical emergency";
+    case "blood_bank": return "Blood requirement";
+    case "police": return "Police or security emergency";
+    case "ambulance": return "Medical transport";
+    case "women_safety": return "Women safety concern";
+    case "child_safety": return "Child safety concern";
+    case "food_support": return "Food support request";
+    case "shelter": return "Shelter support request";
+    case "general_emergency": return "General emergency";
+    default: return "General emergency";
   }
 }
 

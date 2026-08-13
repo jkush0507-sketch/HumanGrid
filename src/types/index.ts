@@ -17,21 +17,6 @@ export type ServiceMode =
 
 export type Severity = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 
-export type EmergencyType =
-  | "medical"
-  | "accident"
-  | "fire"
-  | "police"
-  | "women_safety"
-  | "child_safety"
-  | "blood_requirement"
-  | "food_requirement"
-  | "shelter_requirement"
-  | "missing_person"
-  | "disaster"
-  | "animal_emergency"
-  | "general";
-
 export interface EmergencyContactSuggestion {
   label: string;
   value: string;
