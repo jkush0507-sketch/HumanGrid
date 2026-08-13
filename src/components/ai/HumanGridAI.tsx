@@ -1,114 +1,137 @@
-import { useEffect, useState } from 'react';
-import { CheckCircle2, MapPin, X } from 'lucide-react';
-import * as Icons from 'lucide-react';
-import type { Coordinates, ServiceMode } from '@/types';
-import { getServiceCard } from '@/services/emergency';
-import { getCurrentPosition, LocationError } from '@/services/location';
-import { ChatInterface } from './ChatInterface';
+import { useEffect, useRef, useState } from "react";
+import { CheckCircle2, MapPin, ShieldAlert, X } from "lucide-react";
+import * as Icons from "lucide-react";
+import type { Coordinates, ServiceMode } from "@/types";
+import { getServiceCard } from "@/services/emergency";
+import { getCurrentPosition, LocationError } from "@/services/location";
+import { ChatInterface } from "./ChatInterface";
+import { AIModeSelector } from "./AIModeSelector";
+import "./AI.css";
 
 interface HumanGridAIProps {
   mode: ServiceMode | null;
   onClose: () => void;
+  onModeChange?: (mode: ServiceMode) => void;
+  onOpenSOS?: () => void;
 }
 
-/**
- * This is the ONE AI engine referenced in the architecture: it never changes
- * component, only the `mode` prop, which re-points the system instruction
- * (see services/gemini.ts) and the copy shown here. No per-service bots.
- */
-export function HumanGridAI({ mode, onClose }: HumanGridAIProps) {
+export function HumanGridAI({ mode, onClose, onModeChange, onOpenSOS }: HumanGridAIProps) {
   const [origin, setOrigin] = useState<Coordinates | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    if (mode) {
-      // Reset per-session state whenever a fresh mode is opened.
-      setLocationError(null);
-      requestLocation();
+    function handleEscape(event: KeyboardEvent): void {
+      if (event.key === "Escape") onClose();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [onClose]);
+
+  useEffect(() => {
+    closeButtonRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    if (!mode) return;
+    void requestLocation();
   }, [mode]);
 
   useEffect(() => {
     if (!toast) return;
-    const t = setTimeout(() => setToast(null), 3200);
-    return () => clearTimeout(t);
+    const timeoutId = window.setTimeout(() => setToast(null), 4200);
+    return () => window.clearTimeout(timeoutId);
   }, [toast]);
 
-  function requestLocation() {
-    getCurrentPosition()
-      .then(setOrigin)
-      .catch((err: unknown) => {
-        setLocationError(err instanceof LocationError ? err.message : 'Location unavailable.');
-      });
+  async function requestLocation(): Promise<void> {
+    try {
+      const coordinates = await getCurrentPosition();
+      setOrigin(coordinates);
+      setLocationError(null);
+    } catch (error: unknown) {
+      const message = error instanceof LocationError ? error.message : "Location access is unavailable.";
+      setLocationError(message);
+    }
   }
 
-  function handleSendSOS() {
-    setToast('SOS sent — nearby responders and your emergency contact have been notified.');
+  function handleOpenSOS(): void {
+    if (onOpenSOS) {
+      onOpenSOS();
+      return;
+    }
+    setToast("SOS is user-controlled. Open the SOS page when you are ready.");
   }
 
-  async function handleShareLocation() {
-    const text = origin
-      ? `My live location: https://www.google.com/maps?q=${origin.lat},${origin.lng}`
-      : 'Requesting my location to share…';
-
+  async function handleShareLocation(): Promise<void> {
+    if (!origin) {
+      setToast("Location is not available. Enable location access and try again.");
+      return;
+    }
+    const locationText = `My HumanGrid location: https://www.google.com/maps?q=${origin.lat},${origin.lng}`;
     if (navigator.share) {
       try {
-        await navigator.share({ title: 'HumanGrid — My location', text });
+        await navigator.share({ title: "HumanGrid location", text: locationText });
+        setToast("Location sharing opened.");
         return;
       } catch {
-        // user cancelled — fall through to clipboard
+        // User cancelled
       }
     }
-    await navigator.clipboard.writeText(text);
-    setToast('Location link copied to clipboard.');
+    if (!navigator.clipboard) {
+      setToast("Location sharing is unavailable in this browser.");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(locationText);
+      setToast("Location link copied to clipboard.");
+    } catch {
+      setToast("The location link could not be copied.");
+    }
   }
 
   if (!mode) return null;
 
   const card = getServiceCard(mode);
-  const Icon = (Icons as unknown as Record<string, Icons.LucideIcon>)[card.icon] ?? Icons.Siren;
+  const Icon = (Icons as unknown as Record<string, Icons.LucideIcon>)[card.icon] ?? Icons.AlertTriangle;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-ink-900/40 backdrop-blur-sm animate-fade-up">
-      <div className="flex h-full w-full max-w-lg flex-col bg-surface shadow-glass-lg sm:rounded-l-2xl">
-        <div className="flex items-center justify-between border-b border-ink-50 bg-white/80 px-5 py-4">
-          <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-ink-700 text-gold">
-              <Icon size={18} />
-            </span>
-            <div>
-              <p className="font-display text-base font-semibold text-ink-800">{card.title}</p>
-              <p className="flex items-center gap-1 text-xs text-ink-400">
-                <MapPin size={11} />
-                {origin ? 'Location active' : locationError ?? 'Locating…'}
-              </p>
+    <div className="humangrid-ai-overlay" role="dialog" aria-modal="true" aria-label="HumanGrid AI emergency assistant">
+      <div className="humangrid-ai-panel">
+        <header className="humangrid-ai-header">
+          <div className="humangrid-ai-title-group">
+            <span className="humangrid-ai-title-icon"><Icon size={19} /></span>
+            <div className="humangrid-ai-title-copy">
+              <p>{card.title}</p>
+              <span><MapPin size={12} />{origin ? "Location available" : locationError ?? "Checking location..."}</span>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            aria-label="Close"
-            className="rounded-full p-2 text-ink-400 transition-colors hover:bg-ink-700/5 hover:text-ink-700"
-          >
-            <X size={18} />
+          <button ref={closeButtonRef} type="button" onClick={onClose} aria-label="Close HumanGrid AI" className="humangrid-ai-close">
+            <X size={19} />
           </button>
+        </header>
+        {onModeChange && (
+          <div className="humangrid-ai-mode-area">
+            <AIModeSelector value={mode} onChange={onModeChange} />
+          </div>
+        )}
+        {locationError && (
+          <div className="humangrid-ai-location-warning" role="status">
+            <ShieldAlert size={17} />
+            <div>
+              <strong>Nearby recommendations are limited</strong>
+              <p>{locationError} You can still use HumanGrid AI without location access.</p>
+              <button type="button" onClick={() => void requestLocation()}>Try location again</button>
+            </div>
+          </div>
+        )}
+        <div className="humangrid-ai-body">
+          <ChatInterface key={mode} mode={mode} origin={origin} onRequestLocation={() => void requestLocation()} onSendSOS={handleOpenSOS} onShareLocation={() => void handleShareLocation()} />
         </div>
-
-        <div className="min-h-0 flex-1">
-          <ChatInterface
-            mode={mode}
-            origin={origin}
-            onRequestLocation={requestLocation}
-            onSendSOS={handleSendSOS}
-            onShareLocation={handleShareLocation}
-          />
-        </div>
-
         {toast && (
-          <div className="absolute bottom-24 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full bg-ink-800 px-4 py-2.5 text-sm text-white shadow-glass-lg animate-pop-in">
-            <CheckCircle2 size={15} className="text-gold" />
-            {toast}
+          <div className="humangrid-ai-toast" role="status">
+            <CheckCircle2 size={16} />
+            <span>{toast}</span>
           </div>
         )}
       </div>

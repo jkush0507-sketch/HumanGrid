@@ -9,3 +9,23 @@ body {
 h1, h2, h3, h4, .logo-text {
   font-family: 'Playfair Display', serif;
 }
+
+/* Ensure responsive text wrapping */
+h1, h2, h3, h4 {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Prevent fixed-width containers */
+.container,
+.wrapper {
+  max-width: 100%;
+  width: 100%;
+}
+
+/* Mobile spacing adjustments */
+@media (max-width: 480px) {
+  body {
+    font-size: 14px;
+  }
+}

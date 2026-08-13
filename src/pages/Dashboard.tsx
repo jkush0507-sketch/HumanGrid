@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
@@ -11,6 +12,12 @@ import type {
 } from "../components/dashboard/dashboardTypes";
 import { HumanGridAI } from "../components/ai/HumanGridAI";
 import type { ServiceMode } from "../types";
+=======
+﻿import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import DashboardHeader from '../components/Layout/DashboardHeader';
+import EmergencyCard from '../components/Emergency/EmergencyCard';
+>>>>>>> 8d9ac64bc967aa03bd5462770bf31062e061924a
 
 export default function Dashboard() {
   const { user, loading: authLoading } = useAuth();
@@ -120,6 +127,7 @@ export default function Dashboard() {
   const role: DashboardRole = profile.user_type;
 
   return (
+<<<<<<< HEAD
     <>
       <DashboardShell profile={profile} role={role}>
         {role === "primary" ? (
@@ -139,5 +147,61 @@ export default function Dashboard() {
         />
       )}
     </>
+=======
+    <div className="min-h-screen bg-background">
+      <DashboardHeader />
+
+      <main className="max-w-7xl mx-auto px-4 py-6 sm:py-8">
+        <section className="mb-8 sm:mb-12">
+          <h1 className="font-playfair text-3xl sm:text-4xl font-bold text-primary mb-2">
+            {getGreeting()}, Jatin.
+          </h1>
+          <p className="text-base sm:text-xl text-gray-600">How can HumanGrid help you today?</p>
+        </section>
+
+        <section className="mb-8 sm:mb-12">
+          <h2 className="font-playfair text-xl sm:text-2xl font-semibold text-primary mb-6">
+            Emergency Services
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+            {isLoading
+              ? Array(8).fill(0).map((_, i) => (
+                  <EmergencyCard key={i} {...emergencyCards[0]} isLoading />
+                ))
+              : emergencyCards.map((card, index) => (
+                  <EmergencyCard key={index} {...card} />
+                ))}
+          </div>
+        </section>
+
+        <section className="bg-primary rounded-2xl p-6 sm:p-8 text-white">
+          <h2 className="font-playfair text-xl sm:text-2xl font-semibold mb-4">Quick Actions</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
+            <button
+              onClick={() => navigate('/map')}
+              className="bg-white/10 hover:bg-white/20 p-4 rounded-lg transition-colors text-left"
+            >
+              <p className="font-semibold">View Map</p>
+              <p className="text-sm text-gray-300">Find nearby services</p>
+            </button>
+            <button
+              onClick={() => navigate('/ai')}
+              className="bg-white/10 hover:bg-white/20 p-4 rounded-lg transition-colors text-left"
+            >
+              <p className="font-semibold">Chat Assistant</p>
+              <p className="text-sm text-gray-300">AI-powered help</p>
+            </button>
+            <button
+              onClick={() => navigate('/profile')}
+              className="bg-white/10 hover:bg-white/20 p-4 rounded-lg transition-colors text-left"
+            >
+              <p className="font-semibold">Profile</p>
+              <p className="text-sm text-gray-300">View your info</p>
+            </button>
+          </div>
+        </section>
+      </main>
+    </div>
+>>>>>>> 8d9ac64bc967aa03bd5462770bf31062e061924a
   );
 }

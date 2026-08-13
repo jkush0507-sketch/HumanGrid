@@ -1,15 +1,11 @@
-import type { Coordinates } from '@/types';
+import type { Coordinates } from "@/types";
 
 export class LocationError extends Error {}
 
-/**
- * Requests the user's current position from the browser.
- * Throws LocationError with a human-readable message on failure.
- */
 export function getCurrentPosition(options?: PositionOptions): Promise<Coordinates> {
   return new Promise((resolve, reject) => {
-    if (!('geolocation' in navigator)) {
-      reject(new LocationError('Geolocation is not supported on this device.'));
+    if (!("geolocation" in navigator)) {
+      reject(new LocationError("Geolocation is not supported on this device."));
       return;
     }
 
@@ -24,8 +20,8 @@ export function getCurrentPosition(options?: PositionOptions): Promise<Coordinat
       (error) => {
         const message =
           error.code === error.PERMISSION_DENIED
-            ? 'Location permission was denied. Enable it to find nearby help faster.'
-            : 'Could not determine your location. Try again or enter it manually.';
+            ? "Location permission was denied. Enable it to find nearby help faster."
+            : "Could not determine your location. Try again or enter it manually.";
         reject(new LocationError(message));
       },
       {
@@ -38,7 +34,6 @@ export function getCurrentPosition(options?: PositionOptions): Promise<Coordinat
   });
 }
 
-/** Haversine distance in kilometers between two coordinates. */
 export function distanceKm(a: Coordinates, b: Coordinates): number {
   const R = 6371;
   const dLat = toRad(b.lat - a.lat);

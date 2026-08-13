@@ -1,0 +1,6386 @@
+
+
+========================================
+FILE: package.json
+========================================
+
+{
+  "name": "humangrid",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@clerk/clerk-react": "^5.61.9",
+    "@supabase/supabase-js": "^2.112.1",
+    "framer-motion": "^12.43.0",
+    "leaflet": "^1.9.4",
+    "lucide-react": "^1.31.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-hot-toast": "^2.6.0",
+    "react-leaflet": "^5.0.0",
+    "react-router-dom": "^7.18.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.5",
+    "eslint": "^10.8.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.3",
+    "globals": "^17.7.0",
+    "typescript": "~6.0.2",
+    "typescript-eslint": "^8.65.0",
+    "vite": "^8.2.0"
+  }
+}
+
+
+========================================
+FILE: tsconfig.json
+========================================
+
+{
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" }
+  ]
+}
+
+
+========================================
+FILE: tsconfig.app.json
+========================================
+
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "target": "es2023",
+    "lib": ["ES2023", "DOM"],
+    "module": "esnext",
+    "types": ["vite/client"],
+    "allowArbitraryExtensions": true,
+    "skipLibCheck": true,
+    "ignoreDeprecations": "6.0",
+
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    },
+
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["src"]
+}
+
+
+========================================
+FILE: vite.config.ts
+========================================
+
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import path from "path";
+
+export default defineConfig({
+  plugins: [react()],
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
+  server: {
+    port: 5173,
+  },
+});
+
+
+========================================
+FILE: eslint.config.js
+========================================
+
+import js from '@eslint/js'
+import globals from 'globals'
+import reactHooks from 'eslint-plugin-react-hooks'
+import reactRefresh from 'eslint-plugin-react-refresh'
+import tseslint from 'typescript-eslint'
+import { defineConfig, globalIgnores } from 'eslint/config'
+
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      js.configs.recommended,
+      tseslint.configs.recommended,
+      reactHooks.configs.flat.recommended,
+      reactRefresh.configs.vite,
+    ],
+    languageOptions: {
+      globals: globals.browser,
+    },
+  },
+])
+
+
+========================================
+FILE NOT FOUND: vercel.json
+========================================
+
+
+
+========================================
+FILE: src/main.tsx
+========================================
+
+import React from "react";
+import ReactDOM from "react-dom/client";
+import { BrowserRouter } from "react-router-dom";
+import App from "./App";
+import "./index.css";
+
+ReactDOM.createRoot(document.getElementById("root")!).render(
+  <React.StrictMode>
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
+  </React.StrictMode>
+);
+
+
+========================================
+FILE: src/App.tsx
+========================================
+
+import { Routes, Route } from "react-router-dom";
+import AIChat from "./pages/AIChat";
+import Home from "./pages/Home";
+import Login from "./pages/Login";
+import Dashboard from "./pages/Dashboard";
+import SOS from "./pages/SOS";
+import Map from "./pages/Map";
+
+import Signup from "./components/Signup";
+
+function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<Home />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/signup" element={<Signup />} />
+      <Route path="/dashboard" element={<Dashboard />} />
+      <Route path="/sos" element={<SOS />} />
+      <Route path="/map" element={<Map />} />
+      <Route path="/ai" element={<AIChat />} />
+    </Routes>
+  );
+}
+
+export default App;
+
+
+========================================
+FILE: src/context/AuthContext.tsx
+========================================
+
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
+import type {
+  Session,
+  User,
+} from "@supabase/supabase-js";
+import {
+  isSupabaseConfigured,
+  supabase,
+} from "@/lib/supabaseClient";
+
+interface AuthContextValue {
+  user: User | null;
+  session: Session | null;
+  loading: boolean;
+
+  signInWithPassword: (
+    email: string,
+    password: string
+  ) => Promise<void>;
+
+  signUpWithPassword: (
+    email: string,
+    password: string,
+    fullName: string
+  ) => Promise<void>;
+
+  signInWithGoogle: () => Promise<void>;
+
+  signInWithPhone: (
+    phone: string
+  ) => Promise<void>;
+
+  verifyPhoneOtp: (
+    phone: string,
+    token: string
+  ) => Promise<void>;
+
+  sendPasswordReset: (
+    email: string
+  ) => Promise<void>;
+
+  signOut: () => Promise<void>;
+}
+
+const AuthContext =
+  createContext<AuthContextValue | undefined>(
+    undefined
+  );
+
+export function AuthProvider({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  const [session, setSession] =
+    useState<Session | null>(null);
+
+  const [loading, setLoading] = useState(
+    isSupabaseConfigured
+  );
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) {
+      return;
+    }
+
+    let mounted = true;
+
+    async function initializeAuth(): Promise<void> {
+      try {
+        const { data } =
+          await supabase.auth.getSession();
+
+        if (!mounted) {
+          return;
+        }
+
+        setSession(data.session);
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void initializeAuth();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(
+      (_event, newSession) => {
+        if (!mounted) {
+          return;
+        }
+
+        setSession(newSession);
+        setLoading(false);
+      }
+    );
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const value: AuthContextValue = {
+    user: session?.user ?? null,
+    session,
+    loading,
+
+    async signInWithPassword(
+      email,
+      password
+    ) {
+      const { error } =
+        await supabase.auth.signInWithPassword({
+          email: email.trim().toLowerCase(),
+          password,
+        });
+
+      if (error) {
+        throw error;
+      }
+    },
+
+    async signUpWithPassword(
+      email,
+      password,
+      fullName
+    ) {
+      const { error } =
+        await supabase.auth.signUp({
+          email: email.trim().toLowerCase(),
+          password,
+          options: {
+            data: {
+              full_name: fullName.trim(),
+            },
+          },
+        });
+
+      if (error) {
+        throw error;
+      }
+    },
+
+    async signInWithGoogle() {
+      const { error } =
+        await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: {
+            redirectTo:
+              `${window.location.origin}/dashboard`,
+          },
+        });
+
+      if (error) {
+        throw error;
+      }
+    },
+
+    async signInWithPhone(phone) {
+      const { error } =
+        await supabase.auth.signInWithOtp({
+          phone: phone.trim(),
+        });
+
+      if (error) {
+        throw error;
+      }
+    },
+
+    async verifyPhoneOtp(phone, token) {
+      const { error } =
+        await supabase.auth.verifyOtp({
+          phone: phone.trim(),
+          token: token.trim(),
+          type: "sms",
+        });
+
+      if (error) {
+        throw error;
+      }
+    },
+
+    async sendPasswordReset(email) {
+      const { error } =
+        await supabase.auth.resetPasswordForEmail(
+          email.trim().toLowerCase(),
+          {
+            redirectTo:
+              `${window.location.origin}/login`,
+          }
+        );
+
+      if (error) {
+        throw error;
+      }
+    },
+
+    async signOut() {
+      const { error } =
+        await supabase.auth.signOut();
+
+      if (error) {
+        throw error;
+      }
+
+      setSession(null);
+    },
+  };
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function useAuth(): AuthContextValue {
+  const context = useContext(AuthContext);
+
+  if (!context) {
+    throw new Error(
+      "useAuth must be used within an AuthProvider"
+    );
+  }
+
+  return context;
+}
+
+
+========================================
+FILE: src/routes/ProtectedRoute.tsx
+========================================
+
+import type { ReactNode } from 'react';
+import { Navigate } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
+import { isSupabaseConfigured } from '@/lib/supabaseClient';
+
+export function ProtectedRoute({ children }: { children: ReactNode }) {
+  const { user, loading } = useAuth();
+
+  // In demo mode (no Supabase configured) we let visitors through so the
+  // product can still be explored end-to-end without live credentials.
+  if (!isSupabaseConfigured) return <>{children}</>;
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-surface">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-ink-100 border-t-gold" />
+      </div>
+    );
+  }
+
+  if (!user) return <Navigate to="/login" replace />;
+
+  return <>{children}</>;
+}
+
+
+========================================
+FILE: src/services/auth.ts
+========================================
+
+import { supabase } from "../lib/supabaseClient";
+
+export const signUp = async (
+  email: string,
+  password: string,
+  fullName: string
+) => {
+  const { data, error } =
+    await supabase.auth.signUp({
+      email: email.trim().toLowerCase(),
+      password,
+      options: {
+        data: {
+          full_name: fullName.trim(),
+        },
+      },
+    });
+
+  return { data, error };
+};
+
+export const signIn = async (
+  email: string,
+  password: string
+) => {
+  const { data, error } =
+    await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
+    });
+
+  return { data, error };
+};
+
+export const signInWithGoogle = async () => {
+  const { data, error } =
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo:
+          `${window.location.origin}/dashboard`,
+      },
+    });
+
+  return { data, error };
+};
+
+export const verifyEmailOtp = async (
+  email: string,
+  token: string
+) => {
+  return await supabase.auth.verifyOtp({
+    email: email.trim().toLowerCase(),
+    token: token.trim(),
+    type: "email",
+  });
+};
+
+export const resendEmailOtp = async (
+  email: string
+) => {
+  return await supabase.auth.signInWithOtp({
+    email: email.trim().toLowerCase(),
+  });
+};
+
+export const resetPassword = async (
+  email: string
+) => {
+  const { data, error } =
+    await supabase.auth.resetPasswordForEmail(
+      email.trim().toLowerCase(),
+      {
+        redirectTo:
+          `${window.location.origin}/login`,
+      }
+    );
+
+  return { data, error };
+};
+
+export const signInWithPhone = async (
+  phone: string
+) => {
+  const { data, error } =
+    await supabase.auth.signInWithOtp({
+      phone: phone.trim(),
+    });
+
+  return { data, error };
+};
+
+export const verifyPhoneOtp = async (
+  phone: string,
+  token: string
+) => {
+  const { data, error } =
+    await supabase.auth.verifyOtp({
+      phone: phone.trim(),
+      token: token.trim(),
+      type: "sms",
+    });
+
+  return { data, error };
+};
+
+export const upsertProfile = async (
+  userId: string,
+  profile: {
+    full_name: string;
+    email: string;
+    phone?: string;
+    user_type?: "primary" | "secondary";
+  }
+) => {
+  return await supabase
+    .from("profiles")
+    .upsert(
+      {
+        user_id: userId,
+        full_name: profile.full_name,
+        email: profile.email,
+        mobile: profile.phone ?? "",
+        user_type: profile.user_type ?? "primary",
+      },
+      {
+        onConflict: "user_id",
+      }
+    );
+};
+
+export const signOut = async () => {
+  const { error } =
+    await supabase.auth.signOut();
+
+  return { error };
+};
+
+
+========================================
+FILE: src/services/gemini.ts
+========================================
+
+import type {
+  Coordinates,
+  EmergencyAnalysis,
+  ServiceMode,
+  Severity,
+} from "@/types";
+import {
+  getContactsForMode,
+  getNearbyServices,
+} from "./emergency";
+
+const GEMINI_API_KEY = import.meta.env
+  .VITE_GEMINI_API_KEY as string | undefined;
+
+const GEMINI_MODEL =
+  (import.meta.env.VITE_GEMINI_MODEL as
+    | string
+    | undefined) || "gemini-1.5-flash";
+
+export const isGeminiConfigured =
+  Boolean(GEMINI_API_KEY);
+
+const GEMINI_ENDPOINT = (
+  model: string
+): string =>
+  `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+
+const MODE_INSTRUCTIONS: Record<
+  ServiceMode,
+  string
+> = {
+  hospital: `
+You are HumanGrid AI in hospital-assistance mode.
+
+Help the user understand the urgency of a possible medical emergency.
+Give short, safe, non-diagnostic guidance. Never prescribe medicines,
+dosages, or treatment plans. Never claim to be a doctor.
+
+For unconsciousness, severe bleeding, difficulty breathing, chest pain,
+suspected stroke, major trauma, or serious accidents, classify the situation
+as HIGH or CRITICAL and prioritize emergency escalation.
+`,
+
+  blood_bank: `
+You are HumanGrid AI in blood-bank mode.
+
+Help identify blood group, quantity, urgency, and patient-support needs.
+Recommend contacting a verified blood bank, hospital, or emergency service.
+Never invent blood availability, donors, hospitals, phone numbers, or locations.
+`,
+
+  police: `
+You are HumanGrid AI in police and security mode.
+
+Help with threats, violence, theft, harassment, missing people, and security
+emergencies. Prioritize reaching a safer place, contacting authorities, and
+sharing location with a trusted person. Do not encourage confrontation.
+Never claim that police have been contacted.
+`,
+
+  ambulance: `
+You are HumanGrid AI in ambulance mode.
+
+Prioritize urgent medical transport and emergency escalation. Give short safety
+guidance while help is being arranged. Never claim that an ambulance has been
+dispatched.
+`,
+
+  women_safety: `
+You are HumanGrid AI in women-safety mode.
+
+Prioritize immediate personal safety. Suggest moving to a public, well-lit, or
+trusted location when possible. Suggest contacting a trusted person and local
+emergency authorities when necessary. Never blame the user and never claim
+that anyone was notified.
+`,
+
+  child_safety: `
+You are HumanGrid AI in child-safety mode.
+
+Prioritize the child's immediate safety. For a missing, endangered, injured,
+or abused child, recommend contacting responsible adults and authorities
+immediately. Never encourage unsafe searching or confrontation.
+`,
+
+  food_support: `
+You are HumanGrid AI in food-support mode.
+
+Help clarify whether the user needs a meal, food supplies, or ongoing support.
+Ask how many people need help and where they are located. Do not invent
+organizations, availability, phone numbers, or locations.
+`,
+
+  shelter: `
+You are HumanGrid AI in shelter-support mode.
+
+Help identify who needs safe shelter, urgency, accessibility needs, and safety
+concerns. Recommend verified shelters, local authorities, or relief groups.
+Do not invent bed availability, organizations, phone numbers, or addresses.
+`,
+
+  general_emergency: `
+You are HumanGrid AI in general-emergency mode.
+
+Classify the situation as medical, accident, fire, police/security,
+personal safety, child safety, disaster, missing person, animal emergency,
+food support, shelter support, or general emergency.
+
+Prioritize immediate safety and emergency escalation. If there may be immediate
+danger to life, classify the situation as HIGH or CRITICAL and tell the user
+to contact local emergency services immediately.
+
+Never claim that HumanGrid, police, ambulance, volunteers, hospitals, or any
+authority has been contacted. Do not invent providers or locations.
+`,
+};
+
+const RESPONSE_SCHEMA_HINT = `
+Return only one valid JSON object. Do not return markdown, code fences,
+or explanatory text outside the JSON object.
+
+Use this shape:
+
+{
+  "emergency_type": "medical | accident | fire | police | women_safety | child_safety | blood_requirement | food_requirement | shelter_requirement | missing_person | disaster | animal_emergency | general",
+  "severity": "LOW | MEDIUM | HIGH | CRITICAL",
+  "summary": "short safe summary",
+  "problem": "one-sentence restatement",
+  "category": "short category label",
+  "immediate_actions": ["2 to 5 short actions"],
+  "action_steps": ["same or compatible immediate actions"],
+  "recommended_service": "hospital | blood_bank | police | ambulance | women_safety | child_safety | food_support | shelter | general_emergency",
+  "required_services": ["relevant services"],
+  "why": "short reason",
+  "warnings": ["important safety warnings"],
+  "next_steps": ["clear next steps"],
+  "blood_group": "string or null",
+  "danger_level": "string or null"
+}
+
+For critical situations, the first action must prioritize contacting local emergency
+services or moving away from immediate danger when safe.
+
+Never claim that a call, dispatch, notification, SOS, or report has already happened.
+`;
+
+interface RawGeminiAnalysis {
+  emergency_type?: string;
+  severity?: Severity;
+  summary?: string;
+  problem?: string;
+  category?: string;
+  immediate_actions?: string[];
+  action_steps?: string[];
+  recommended_service?: ServiceMode;
+  required_services?: string[];
+  why?: string;
+  warnings?: string[];
+  next_steps?: string[];
+  blood_group?: string | null;
+  danger_level?: string | null;
+}
+
+interface GeminiResponseData {
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{
+        text?: string;
+      }>;
+    };
+  }>;
+}
+
+interface AnalysisResult {
+  raw: RawGeminiAnalysis;
+  source: "gemini" | "fallback";
+}
+
+export async function analyzeEmergency(
+  mode: ServiceMode,
+  userInput: string,
+  origin: Coordinates | null
+): Promise<EmergencyAnalysis> {
+  const cleanInput = userInput.trim();
+
+  const result = isGeminiConfigured
+    ? await callGeminiSafely(mode, cleanInput)
+    : {
+        raw: fallbackAnalysis(mode, cleanInput),
+        source: "fallback" as const,
+      };
+
+  const nearbyServices = origin
+    ? await getNearbyServices(mode, origin)
+    : [];
+
+  return {
+    problem: result.raw.problem ?? "Emergency reported.",
+    category:
+      result.raw.category ?? defaultCategory(mode),
+    severity:
+      result.raw.severity ?? "MEDIUM",
+    required_services:
+      result.raw.required_services ?? [],
+    action_steps:
+      result.raw.action_steps ??
+      result.raw.immediate_actions ??
+      [],
+    immediate_actions:
+      result.raw.immediate_actions ??
+      result.raw.action_steps ??
+      [],
+    contacts: getContactsForMode(mode),
+    nearby_services: nearbyServices,
+    mode,
+    emergency_type:
+      result.raw.emergency_type ??
+      defaultEmergencyType(mode),
+    summary:
+      result.raw.summary ??
+      "The situation needs appropriate support.",
+    recommended_service:
+      result.raw.recommended_service ?? mode,
+    why:
+      result.raw.why ??
+      "This is the selected support category.",
+    warnings: result.raw.warnings ?? [],
+    next_steps: result.raw.next_steps ?? [],
+    blood_group:
+      result.raw.blood_group ?? undefined,
+    danger_level:
+      result.raw.danger_level ?? undefined,
+    source: result.source,
+  };
+}
+
+async function callGeminiSafely(
+  mode: ServiceMode,
+  userInput: string
+): Promise<AnalysisResult> {
+  try {
+    const raw = await callGemini(mode, userInput);
+
+    return {
+      raw: sanitizeAnalysis(raw, mode, userInput),
+      source: "gemini",
+    };
+  } catch {
+    return {
+      raw: fallbackAnalysis(mode, userInput),
+      source: "fallback",
+    };
+  }
+}
+
+async function callGemini(
+  mode: ServiceMode,
+  userInput: string
+): Promise<RawGeminiAnalysis> {
+  const body = {
+    system_instruction: {
+      parts: [
+        {
+          text:
+            `${MODE_INSTRUCTIONS[mode]}\n` +
+            RESPONSE_SCHEMA_HINT,
+        },
+      ],
+    },
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: userInput }],
+      },
+    ],
+    generationConfig: {
+      temperature: 0.2,
+      responseMimeType: "application/json",
+    },
+  };
+
+  const response = await fetch(
+    GEMINI_ENDPOINT(GEMINI_MODEL),
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `Gemini request failed: ${response.status}`
+    );
+  }
+
+  const data =
+    (await response.json()) as GeminiResponseData;
+
+  const text =
+    data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+  if (!text) {
+    throw new Error("Gemini returned an empty response");
+  }
+
+  const parsed: unknown = JSON.parse(
+    stripCodeFences(text)
+  );
+
+  if (!isRecord(parsed)) {
+    throw new Error(
+      "Gemini returned an invalid response"
+    );
+  }
+
+  return parsed as RawGeminiAnalysis;
+}
+
+function sanitizeAnalysis(
+  raw: RawGeminiAnalysis,
+  mode: ServiceMode,
+  userInput: string
+): RawGeminiAnalysis {
+  const severity = isSeverity(raw.severity)
+    ? raw.severity
+    : "MEDIUM";
+
+  const immediateActions =
+    normalizeStrings(raw.immediate_actions);
+
+  const actionSteps =
+    normalizeStrings(raw.action_steps);
+
+  const safeActions =
+    immediateActions.length > 0
+      ? immediateActions
+      : actionSteps.length > 0
+        ? actionSteps
+        : defaultActions(severity);
+
+  return {
+    emergency_type:
+      raw.emergency_type ??
+      defaultEmergencyType(mode),
+    severity,
+    summary:
+      raw.summary ??
+      "The situation needs appropriate support.",
+    problem:
+      raw.problem ??
+      userInput ??
+      "Emergency situation reported.",
+    category:
+      raw.category ??
+      defaultCategory(mode),
+    immediate_actions: safeActions,
+    action_steps: safeActions,
+    recommended_service:
+      isServiceMode(raw.recommended_service)
+        ? raw.recommended_service
+        : mode,
+    required_services:
+      normalizeStrings(raw.required_services)
+        .length > 0
+        ? normalizeStrings(raw.required_services)
+        : [mode],
+    why:
+      raw.why ??
+      "This is the relevant support category for the selected mode.",
+    warnings:
+      normalizeStrings(raw.warnings),
+    next_steps:
+      normalizeStrings(raw.next_steps).length > 0
+        ? normalizeStrings(raw.next_steps)
+        : [
+            "Contact an appropriate local emergency or support service.",
+          ],
+    blood_group: raw.blood_group ?? null,
+    danger_level: raw.danger_level ?? null,
+  };
+}
+
+function fallbackAnalysis(
+  mode: ServiceMode,
+  userInput: string
+): RawGeminiAnalysis {
+  const text = userInput.toLowerCase();
+
+  const critical =
+    /not breathing|cannot breathe|can't breathe|unconscious|severe bleeding|bleeding heavily|chest pain|heart attack|active fire|immediate danger|being attacked|child in danger/.test(
+      text
+    );
+
+  const high =
+    /accident|injured|assault|threat|unsafe|stolen|missing|violence|fire|flood|earthquake/.test(
+      text
+    );
+
+  const severity: Severity = critical
+    ? "CRITICAL"
+    : high
+      ? "HIGH"
+      : "MEDIUM";
+
+  const actions = defaultActionsForMode(
+    mode,
+    severity
+    
+  );
+
+  return {
+    emergency_type: defaultEmergencyType(mode),
+    severity,
+    summary:
+      "AI analysis is temporarily unavailable. These are general emergency guidance steps.",
+    problem:
+      userInput || "Emergency situation reported.",
+    category: defaultCategory(mode),
+    immediate_actions: actions,
+    action_steps: actions,
+    recommended_service: mode,
+    required_services: [mode],
+    why:
+      "This is a fallback recommendation based on the selected mode.",
+    warnings: [
+      "AI analysis is temporarily unavailable.",
+      "Verify important details with an appropriate professional or local service.",
+    ],
+    next_steps: [
+      "Contact an appropriate local emergency or support service.",
+      "Do not treat this fallback guidance as a diagnosis or official dispatch.",
+    ],
+    blood_group:
+      mode === "blood_bank"
+        ? extractBloodGroup(userInput)
+        : null,
+    danger_level:
+      mode === "women_safety" ||
+      mode === "child_safety"
+        ? severity === "CRITICAL"
+          ? "Critical"
+          : "Elevated"
+        : null,
+  };
+}
+
+function defaultActionsForMode(
+  mode: ServiceMode,
+  severity: Severity
+): string[] {
+  if (severity === "CRITICAL") {
+    return [
+      "Contact local emergency services immediately.",
+      "Move away from immediate danger if safe.",
+      "Stay with the affected person if possible.",
+    ];
+  }
+
+  switch (mode) {
+    case "hospital":
+      return [
+        "Contact a medical professional or emergency service.",
+        "Avoid unnecessary movement after serious injury.",
+        "Monitor breathing and responsiveness.",
+      ];
+
+    case "ambulance":
+      return [
+        "Contact emergency services for transport.",
+        "Stay in a safe and accessible location.",
+        "Keep relevant medical information ready.",
+      ];
+
+    case "police":
+      return [
+        "Move to a safer location if possible.",
+        "Contact local police or emergency authorities.",
+        "Share your location with a trusted person.",
+      ];
+
+    case "women_safety":
+      return [
+        "Move to a public or well-lit location if possible.",
+        "Alert a trusted person.",
+        "Contact emergency authorities if in immediate danger.",
+      ];
+
+    case "child_safety":
+      return [
+        "Contact responsible adults and authorities immediately.",
+        "Share a recent photo and last known location.",
+        "Avoid unsafe searching or confrontation.",
+      ];
+
+    case "blood_bank":
+      return [
+        "Confirm blood group and quantity with the hospital.",
+        "Contact a verified blood bank or hospital.",
+        "Keep hospital and contact details ready.",
+      ];
+
+    case "food_support":
+      return [
+        "Confirm how many people need food.",
+        "Contact a verified support organization.",
+        "Share the collection or delivery location safely.",
+      ];
+
+    case "shelter":
+      return [
+        "Move to a safe location if in immediate danger.",
+        "Contact a verified shelter or relief organization.",
+        "Confirm availability before traveling.",
+      ];
+
+    case "general_emergency":
+      return [
+        "Move away from immediate danger if safe.",
+        "Contact the appropriate local emergency service.",
+        "Share your location with a trusted person.",
+      ];
+
+    default:
+      return [
+        "Contact local emergency or support services.",
+        "Move to a safe location if necessary.",
+      ];
+  }
+}
+
+function defaultActions(
+  severity: Severity
+): string[] {
+  return severity === "CRITICAL"
+    ? [
+        "Contact local emergency services immediately.",
+        "Move away from immediate danger if safe.",
+      ]
+    : [
+        "Contact an appropriate local support service.",
+        "Move to a safe location if necessary.",
+      ];
+}
+
+function defaultEmergencyType(
+  mode: ServiceMode
+): string {
+  switch (mode) {
+    case "hospital":
+    case "ambulance":
+      return "medical";
+
+    case "blood_bank":
+      return "blood_requirement";
+
+    case "police":
+      return "police";
+
+    case "women_safety":
+      return "women_safety";
+
+    case "child_safety":
+      return "child_safety";
+
+    case "food_support":
+      return "food_requirement";
+
+    case "shelter":
+      return "shelter_requirement";
+
+    case "general_emergency":
+      return "general";
+
+    default:
+      return "general";
+  }
+}
+
+function defaultCategory(
+  mode: ServiceMode
+): string {
+  switch (mode) {
+    case "hospital":
+      return "Medical emergency";
+
+    case "blood_bank":
+      return "Blood requirement";
+
+    case "police":
+      return "Police or security emergency";
+
+    case "ambulance":
+      return "Medical transport";
+
+    case "women_safety":
+      return "Women safety concern";
+
+    case "child_safety":
+      return "Child safety concern";
+
+    case "food_support":
+      return "Food support request";
+
+    case "shelter":
+      return "Shelter support request";
+
+    case "general_emergency":
+      return "General emergency";
+
+    default:
+      return "General emergency";
+  }
+}
+
+function extractBloodGroup(
+  text: string
+): string | null {
+  const match = text.match(
+    /\b(A|B|AB|O)\s?(\+|positive|-|negative)\b/i
+  );
+
+  if (!match) {
+    return null;
+  }
+
+  const group = match[1].toUpperCase();
+  const sign = /pos|\+/i.test(match[2])
+    ? "+"
+    : "-";
+
+  return `${group}${sign}`;
+}
+
+function normalizeStrings(
+  value: unknown
+): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .filter(
+      (item): item is string =>
+        typeof item === "string"
+    )
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0)
+    .slice(0, 8);
+}
+
+function isSeverity(
+  value: unknown
+): value is Severity {
+  return (
+    value === "LOW" ||
+    value === "MEDIUM" ||
+    value === "HIGH" ||
+    value === "CRITICAL"
+  );
+}
+
+function isServiceMode(
+  value: unknown
+): value is ServiceMode {
+  return (
+    value === "hospital" ||
+    value === "police" ||
+    value === "blood_bank" ||
+    value === "shelter" ||
+    value === "women_safety" ||
+    value === "child_safety" ||
+    value === "food_support" ||
+    value === "ambulance" ||
+    value === "general_emergency"
+  );
+}
+
+function isRecord(
+  value: unknown
+): value is Record<string, unknown> {
+  return (
+    typeof value === "object" &&
+    value !== null
+  );
+}
+
+function stripCodeFences(
+  text: string
+): string {
+  return text
+    .trim()
+    .replace(/^```json/i, "")
+    .replace(/^```/i, "")
+    .replace(/```$/i, "")
+    .trim();
+}
+
+
+========================================
+FILE: src/services/location.ts
+========================================
+
+import type { Coordinates } from '@/types';
+
+export class LocationError extends Error {}
+
+/**
+ * Requests the user's current position from the browser.
+ * Throws LocationError with a human-readable message on failure.
+ */
+export function getCurrentPosition(options?: PositionOptions): Promise<Coordinates> {
+  return new Promise((resolve, reject) => {
+    if (!('geolocation' in navigator)) {
+      reject(new LocationError('Geolocation is not supported on this device.'));
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+        });
+      },
+      (error) => {
+        const message =
+          error.code === error.PERMISSION_DENIED
+            ? 'Location permission was denied. Enable it to find nearby help faster.'
+            : 'Could not determine your location. Try again or enter it manually.';
+        reject(new LocationError(message));
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 30000,
+        ...options,
+      }
+    );
+  });
+}
+
+/** Haversine distance in kilometers between two coordinates. */
+export function distanceKm(a: Coordinates, b: Coordinates): number {
+  const R = 6371;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+
+  const sinDLat = Math.sin(dLat / 2);
+  const sinDLng = Math.sin(dLng / 2);
+
+  const h = sinDLat * sinDLat + Math.cos(lat1) * Math.cos(lat2) * sinDLng * sinDLng;
+  const c = 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+  return R * c;
+}
+
+function toRad(deg: number): number {
+  return (deg * Math.PI) / 180;
+}
+
+
+========================================
+FILE: src/services/emergency.ts
+========================================
+
+import type {
+  Coordinates,
+  EmergencyContactSuggestion,
+  NearbyService,
+  ServiceCardDefinition,
+  ServiceMode,
+} from "@/types";
+import { distanceKm } from "./location";
+
+export const SERVICE_CARDS: ServiceCardDefinition[] = [
+  {
+    mode: "hospital",
+    title: "Hospital Assistance",
+    description:
+      "Medical emergencies, injuries, and urgent care guidance.",
+    icon: "Cross",
+  },
+  {
+    mode: "blood_bank",
+    title: "Blood Bank",
+    description:
+      "Blood-group and blood-support guidance.",
+    icon: "Droplet",
+  },
+  {
+    mode: "police",
+    title: "Police Help",
+    description:
+      "Crime, security, threat, and incident guidance.",
+    icon: "Shield",
+  },
+  {
+    mode: "ambulance",
+    title: "Ambulance",
+    description:
+      "Urgent medical transport and escalation guidance.",
+    icon: "Siren",
+  },
+  {
+    mode: "women_safety",
+    title: "Women Safety",
+    description:
+      "Immediate personal-safety guidance and escalation.",
+    icon: "ShieldAlert",
+  },
+  {
+    mode: "child_safety",
+    title: "Child Safety",
+    description:
+      "Support for missing or endangered children.",
+    icon: "HeartHandshake",
+  },
+  {
+    mode: "food_support",
+    title: "Food Support",
+    description:
+      "Food and community-support guidance.",
+    icon: "Soup",
+  },
+  {
+    mode: "shelter",
+    title: "Shelter Support",
+    description:
+      "Safe shelter and relief-support guidance.",
+    icon: "Home",
+  },
+  {
+    mode: "general_emergency",
+    title: "General Emergency",
+    description:
+      "Guidance for an emergency without a clear category.",
+    icon: "AlertTriangle",
+  },
+];
+
+export function getServiceCard(
+  mode: ServiceMode
+): ServiceCardDefinition {
+  const card = SERVICE_CARDS.find(
+    (serviceCard) => serviceCard.mode === mode
+  );
+
+  if (!card) {
+    throw new Error(`Unknown service mode: ${mode}`);
+  }
+
+  return card;
+}
+
+export function getContactsForMode(
+  mode: ServiceMode
+): EmergencyContactSuggestion[] {
+  const universal: EmergencyContactSuggestion[] = [
+    {
+      label: "National Emergency Number",
+      value: "112",
+    },
+  ];
+
+  const byMode: Partial<
+    Record<ServiceMode, EmergencyContactSuggestion[]>
+  > = {
+    hospital: [
+      {
+        label: "Ambulance",
+        value: "108",
+      },
+    ],
+    ambulance: [
+      {
+        label: "Ambulance",
+        value: "108",
+      },
+    ],
+    police: [
+      {
+        label: "Police",
+        value: "100",
+      },
+    ],
+    women_safety: [
+      {
+        label: "Women Helpline",
+        value: "1091",
+      },
+    ],
+    child_safety: [
+      {
+        label: "Child Helpline",
+        value: "1098",
+      },
+    ],
+    blood_bank: [
+      {
+        label: "Blood Bank Helpline",
+        value: "104",
+      },
+    ],
+  };
+
+  return [
+    ...universal,
+    ...(byMode[mode] ?? []),
+  ];
+}
+
+/**
+ * Current implementation returns demo resources.
+ * These are not verified live emergency providers.
+ */
+export async function getNearbyServices(
+  mode: ServiceMode,
+  origin: Coordinates
+): Promise<NearbyService[]> {
+  const templates =
+    NEARBY_TEMPLATES[mode] ??
+    NEARBY_TEMPLATES.general_emergency;
+
+  const services = templates.map(
+    (template, index) => {
+      const angle =
+        (index / templates.length) * 2 * Math.PI;
+
+      const radiusDegrees = 0.01 + index * 0.006;
+
+      const point: Coordinates = {
+        lat:
+          origin.lat +
+          radiusDegrees * Math.cos(angle),
+        lng:
+          origin.lng +
+          radiusDegrees * Math.sin(angle),
+      };
+
+      return {
+        ...template,
+        id: `${mode}-mock-${index}`,
+        lat: point.lat,
+        lng: point.lng,
+        distanceKm:
+          Math.round(
+            distanceKm(origin, point) * 10
+          ) / 10,
+        dataSource: "mock",
+      } satisfies NearbyService;
+    }
+  );
+
+  return services.sort(
+    (first, second) =>
+      first.distanceKm - second.distanceKm
+  );
+}
+
+type NearbyTemplate = Omit<
+  NearbyService,
+  | "id"
+  | "lat"
+  | "lng"
+  | "distanceKm"
+  | "dataSource"
+>;
+
+const NEARBY_TEMPLATES: Record<
+  ServiceMode,
+  NearbyTemplate[]
+> = {
+  hospital: [
+    {
+      name: "Demo hospital result",
+      availability:
+        "Verify availability before traveling",
+      contact: "112",
+    },
+    {
+      name: "Demo medical center result",
+      availability:
+        "Verify availability before traveling",
+      contact: "112",
+    },
+  ],
+
+  blood_bank: [
+    {
+      name: "Demo blood-bank result",
+      availability:
+        "Verify stock before traveling",
+      contact: "104",
+    },
+    {
+      name: "Demo blood-center result",
+      availability:
+        "Verify stock before traveling",
+      contact: "104",
+    },
+  ],
+
+  police: [
+    {
+      name: "Demo police-service result",
+      availability:
+        "Verify location before traveling",
+      contact: "100",
+    },
+    {
+      name: "Demo police-support result",
+      availability:
+        "Verify location before traveling",
+      contact: "100",
+    },
+  ],
+
+  ambulance: [
+    {
+      name: "Demo ambulance result",
+      availability:
+        "Call emergency services directly",
+      contact: "108",
+    },
+    {
+      name: "Demo medical transport result",
+      availability:
+        "Call emergency services directly",
+      contact: "108",
+    },
+  ],
+
+  women_safety: [
+    {
+      name: "Demo women-safety result",
+      availability:
+        "Verify location before traveling",
+      contact: "1091",
+    },
+    {
+      name: "Demo police-support result",
+      availability:
+        "Verify location before traveling",
+      contact: "100",
+    },
+  ],
+
+  child_safety: [
+    {
+      name: "Demo child-safety result",
+      availability:
+        "Contact authorities immediately",
+      contact: "1098",
+    },
+    {
+      name: "Demo police-support result",
+      availability:
+        "Contact authorities immediately",
+      contact: "100",
+    },
+  ],
+
+  food_support: [
+    {
+      name: "Demo community-food result",
+      availability:
+        "Verify operating hours",
+      contact: "112",
+    },
+    {
+      name: "Demo food-support result",
+      availability:
+        "Verify availability",
+      contact: "112",
+    },
+  ],
+
+  shelter: [
+    {
+      name: "Demo shelter result",
+      availability:
+        "Verify space before traveling",
+      contact: "112",
+    },
+    {
+      name: "Demo relief-center result",
+      availability:
+        "Verify space before traveling",
+      contact: "112",
+    },
+  ],
+
+  general_emergency: [
+    {
+      name: "General emergency support",
+      availability:
+        "Call 112 for immediate danger",
+      contact: "112",
+    },
+    {
+      name: "Local emergency assistance",
+      availability:
+        "Verify provider details",
+      contact: "112",
+    },
+  ],
+};
+
+
+========================================
+FILE: src/services/sos.ts
+========================================
+
+import { supabase } from "../lib/supabase";
+
+export const sendSOS = async (
+  category: string,
+  status: string
+) => {
+  return await supabase.from("reports").insert([
+    {
+      category,
+      status,
+    },
+  ]);
+};
+
+
+========================================
+FILE: src/pages/Home.tsx
+========================================
+
+import Navbar from "../components/Navbar";
+import Hero from "../components/Hero";
+import Features from "../components/Features";
+import HowItWorks from "../components/HowItWorks";
+import SOSButton from "../components/SOSButton";
+import Footer from "../components/Footer";
+
+const Home = () => {
+  return (
+    <>
+      <Navbar />
+      <Hero />
+      <Features />
+      <HowItWorks />
+      <SOSButton />
+      <Footer />
+    </>
+  );
+};
+
+export default Home;
+
+
+========================================
+FILE: src/pages/Login.tsx
+========================================
+
+import Login from "../components/Login";
+
+const LoginPage = () => {
+  return <Login />;
+};
+
+export default LoginPage;
+
+
+========================================
+FILE NOT FOUND: src/pages/Signup.tsx
+========================================
+
+
+
+========================================
+FILE: src/pages/Dashboard.tsx
+========================================
+
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import DashboardHeader from '../components/Layout/DashboardHeader';
+import EmergencyCard from '../components/Emergency/EmergencyCard';
+
+const emergencyCards = [
+  { title: 'Hospital Assistance', description: 'Find nearest hospitals and emergency care', type: 'hospital', color: 'border-red-500' },
+  { title: 'Blood Bank', description: 'Locate blood banks and donation centers', type: 'blood_bank', color: 'border-pink-500' },
+  { title: 'Police Help', description: 'Contact police for immediate assistance', type: 'police', color: 'border-blue-500' },
+  { title: 'Ambulance', description: 'Request emergency ambulance services', type: 'ambulance', color: 'border-orange-500' },
+  { title: 'Shelter', description: 'Find emergency shelter and housing', type: 'shelter', color: 'border-green-500' },
+  { title: 'Food Support', description: 'Access food banks and meal services', type: 'food', color: 'border-yellow-500' },
+  { title: 'Women Safety', description: 'Specialized support for women in crisis', type: 'women_safety', color: 'border-purple-500' },
+  { title: 'Child Safety', description: 'Child protection and emergency services', type: 'child_safety', color: 'border-indigo-500' },
+];
+
+const Dashboard = () => {
+  const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 800);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 18) return 'Good afternoon';
+    return 'Good evening';
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      <DashboardHeader notificationCount={3} />
+
+      <main className="max-w-7xl mx-auto px-4 py-8">
+        {/* Hero */}
+        <section className="mb-12">
+          <h1 className="font-playfair text-4xl font-bold text-primary mb-2">
+            {getGreeting()}, Jatin.
+          </h1>
+          <p className="text-xl text-gray-600">How can HumanGrid help you today?</p>
+        </section>
+
+        {/* Emergency Cards */}
+        <section className="mb-12">
+          <h2 className="font-playfair text-2xl font-semibold text-primary mb-6">
+            Emergency Services
+          </h2>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {isLoading
+              ? Array(8).fill(0).map((_, i) => (
+                  <EmergencyCard key={i} {...emergencyCards[0]} isLoading />
+                ))
+              : emergencyCards.map((card, index) => (
+                  <EmergencyCard key={index} {...card} />
+                ))}
+          </div>
+        </section>
+
+        {/* Quick Actions */}
+        <section className="bg-primary rounded-2xl p-8 text-white">
+          <h2 className="font-playfair text-2xl font-semibold mb-4">Quick Actions</h2>
+          <div className="grid md:grid-cols-3 gap-4">
+            <button
+              onClick={() => navigate('/map')}
+              className="bg-white/10 hover:bg-white/20 p-4 rounded-lg transition-colors text-left"
+            >
+              <p className="font-semibold">View Map</p>
+              <p className="text-sm text-gray-300">Find nearby services</p>
+            </button>
+            <button
+              onClick={() => navigate('/chat')}
+              className="bg-white/10 hover:bg-white/20 p-4 rounded-lg transition-colors text-left"
+            >
+              <p className="font-semibold">Chat Assistant</p>
+              <p className="text-sm text-gray-300">AI-powered help</p>
+            </button>
+            <button
+              onClick={() => navigate('/profile')}
+              className="bg-white/10 hover:bg-white/20 p-4 rounded-lg transition-colors text-left"
+            >
+              <p className="font-semibold">Profile</p>
+              <p className="text-sm text-gray-300">View your info</p>
+            </button>
+          </div>
+        </section>
+      </main>
+    </div>
+  );
+};
+
+export default Dashboard;
+
+
+========================================
+FILE: src/pages/AIChat.tsx
+========================================
+
+import { useState } from "react";
+import {
+  useNavigate,
+  useSearchParams,
+} from "react-router-dom";
+import { HumanGridAI } from "../components/ai/HumanGridAI";
+import type { ServiceMode } from "../types";
+
+const SERVICE_MODES: ServiceMode[] = [
+  "hospital",
+  "blood_bank",
+  "police",
+  "ambulance",
+  "women_safety",
+  "child_safety",
+  "food_support",
+  "shelter",
+  "general_emergency",
+];
+
+function isServiceMode(
+  value: string | null
+): value is ServiceMode {
+  return (
+    value !== null &&
+    SERVICE_MODES.includes(value as ServiceMode)
+  );
+}
+
+export default function AIChat() {
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] =
+    useSearchParams();
+
+  const urlMode = searchParams.get("mode");
+
+  const initialMode: ServiceMode = isServiceMode(urlMode)
+    ? urlMode
+    : "general_emergency";
+
+  const [mode, setMode] =
+    useState<ServiceMode>(initialMode);
+
+  function handleModeChange(
+    nextMode: ServiceMode
+  ): void {
+    setMode(nextMode);
+
+    setSearchParams(
+      {
+        mode: nextMode,
+      },
+      {
+        replace: true,
+      }
+    );
+  }
+
+  function handleClose(): void {
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+
+    navigate("/dashboard", {
+      replace: true,
+    });
+  }
+
+  function handleOpenSOS(): void {
+    navigate("/sos");
+  }
+
+  return (
+    <HumanGridAI
+      mode={mode}
+      onModeChange={handleModeChange}
+      onClose={handleClose}
+      onOpenSOS={handleOpenSOS}
+    />
+  );
+}
+
+
+========================================
+FILE: src/pages/Map.tsx
+========================================
+
+import { Building2, Shield, Droplet } from 'lucide-react';
+import DashboardHeader from '../components/Layout/DashboardHeader';
+import { findNearby } from '../utils/findNearby';
+
+const services = [
+  {
+    label: 'Hospitals',
+    query: 'hospital',
+    icon: <Building2 className="w-8 h-8" />,
+    color: 'border-red-500',
+    description: 'Find nearest hospitals and emergency care centers',
+  },
+  {
+    label: 'Police Stations',
+    query: 'police station',
+    icon: <Shield className="w-8 h-8" />,
+    color: 'border-blue-500',
+    description: 'Locate nearby police stations for immediate help',
+  },
+  {
+    label: 'Blood Banks',
+    query: 'blood bank',
+    icon: <Droplet className="w-8 h-8" />,
+    color: 'border-pink-500',
+    description: 'Find blood banks and donation centers near you',
+  },
+];
+
+const Map = () => {
+  return (
+    <div className="min-h-screen bg-background">
+      <DashboardHeader />
+
+      <main className="max-w-7xl mx-auto px-4 py-8">
+        <h1 className="font-playfair text-4xl font-bold text-primary mb-2">
+          Nearby Services
+        </h1>
+        <p className="text-gray-600 mb-10">
+          Tap a service to open nearby locations on Google Maps
+        </p>
+
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {services.map((service) => (
+            <button
+              key={service.query}
+              onClick={() => findNearby(service.query)}
+              className={`group bg-white rounded-xl shadow-md p-6 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-t-4 ${service.color} text-left`}
+            >
+              <div className="w-12 h-12 rounded-lg flex items-center justify-center mb-4 text-primary transition-transform group-hover:scale-110">
+                {service.icon}
+              </div>
+              <h3 className="font-playfair text-xl font-semibold mb-2 text-primary group-hover:text-accent transition-colors">
+                {service.label}
+              </h3>
+              <p className="text-gray-600 text-sm">{service.description}</p>
+            </button>
+          ))}
+        </div>
+      </main>
+    </div>
+  );
+};
+
+export default Map;
+
+
+========================================
+FILE: src/pages/SOS.tsx
+========================================
+
+const SOS = () => {
+  return <h1>SOS</h1>;
+};
+
+export default SOS;
+
+
+========================================
+FILE: src/pages/Profile.tsx
+========================================
+
+import { User, Phone, Droplet, MapPin, History, Edit2 } from 'lucide-react';
+import DashboardHeader from '../components/Layout/DashboardHeader';
+
+const emergencyContacts = [
+  { name: 'Father', relation: 'Emergency Contact', phone: '+91 98765 43210' },
+  { name: 'Mother', relation: 'Emergency Contact', phone: '+91 98765 11111' },
+];
+
+const emergencyHistory = [
+  { category: 'Medical Emergency', date: 'Aug 5, 2026', status: 'completed' },
+  { category: 'Ambulance Request', date: 'Jul 28, 2026', status: 'completed' },
+];
+
+const statusColors: Record<string, string> = {
+  completed: 'bg-green-100 text-green-800',
+  pending: 'bg-yellow-100 text-yellow-800',
+  dispatched: 'bg-blue-100 text-blue-800',
+};
+
+const Profile = () => {
+  return (
+    <div className="min-h-screen bg-background">
+      <DashboardHeader />
+
+      <main className="max-w-4xl mx-auto px-4 py-8">
+        {/* Profile header */}
+        <div className="bg-white rounded-2xl shadow-lg p-8 mb-8">
+          <div className="flex items-center space-x-6">
+            <div className="w-24 h-24 bg-primary rounded-full flex items-center justify-center">
+              <User className="w-12 h-12 text-white" />
+            </div>
+            <div>
+              <h1 className="font-playfair text-3xl font-bold text-primary mb-1">
+                Jatin
+              </h1>
+              <p className="text-gray-600">jatin@example.com</p>
+            </div>
+            <button className="ml-auto p-2 hover:bg-gray-100 rounded-lg transition-colors">
+              <Edit2 className="w-5 h-5 text-gray-600" />
+            </button>
+          </div>
+        </div>
+
+        {/* Contact + Medical info */}
+        <div className="grid md:grid-cols-2 gap-6 mb-8">
+          <div className="bg-white rounded-xl shadow-md p-6">
+            <div className="flex items-center space-x-3 mb-4">
+              <Phone className="w-5 h-5 text-primary" />
+              <h2 className="font-semibold text-lg">Contact Information</h2>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <p className="text-sm text-gray-500">Phone</p>
+                <p className="text-gray-800">+91 98765 43210</p>
+              </div>
+              <div className="flex items-start space-x-1">
+                <MapPin className="w-4 h-4 text-gray-400 mt-1" />
+                <div>
+                  <p className="text-sm text-gray-500">Address</p>
+                  <p className="text-gray-800">Agra, Uttar Pradesh, India</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-md p-6">
+            <div className="flex items-center space-x-3 mb-4">
+              <Droplet className="w-5 h-5 text-red-600" />
+              <h2 className="font-semibold text-lg">Medical Information</h2>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Blood Group</p>
+              <p className="text-2xl font-bold text-red-600">O+</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Emergency contacts */}
+        <div className="bg-white rounded-xl shadow-md p-6 mb-8">
+          <h2 className="font-semibold text-lg mb-4">Emergency Contacts</h2>
+          <div className="space-y-3">
+            {emergencyContacts.map((contact, i) => (
+              <div
+                key={i}
+                className="flex items-center justify-between py-3 border-b last:border-b-0"
+              >
+                <div>
+                  <p className="font-medium">{contact.name}</p>
+                  <p className="text-sm text-gray-500">{contact.relation}</p>
+                </div>
+                <a
+                  href={`tel:${contact.phone}`}
+                  className="text-primary hover:underline"
+                >
+                  {contact.phone}
+                </a>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Emergency history */}
+        <div className="bg-white rounded-xl shadow-md p-6">
+          <div className="flex items-center space-x-3 mb-4">
+            <History className="w-5 h-5 text-primary" />
+            <h2 className="font-semibold text-lg">Emergency History</h2>
+          </div>
+          {emergencyHistory.length > 0 ? (
+            <div className="space-y-3">
+              {emergencyHistory.map((item, i) => (
+                <div
+                  key={i}
+                  className="flex items-center justify-between py-3 border-b last:border-b-0"
+                >
+                  <div>
+                    <p className="font-medium">{item.category}</p>
+                    <p className="text-sm text-gray-500">{item.date}</p>
+                  </div>
+                  <span
+                    className={`px-3 py-1 rounded-full text-sm font-medium ${statusColors[item.status]}`}
+                  >
+                    {item.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-500">No emergency history</p>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+};
+
+export default Profile;
+
+
+========================================
+FILE: src/pages/Settings.tsx
+========================================
+
+const Settings = () => {
+  return (
+    <div>
+      <h1>Settings</h1>
+      <p>Account and application settings.</p>
+    </div>
+  );
+};
+
+export default Settings;
+
+
+========================================
+FILE: src/pages/Notifications.tsx
+========================================
+
+const Notifications = () => {
+  return (
+    <div>
+      <h1>Notifications</h1>
+      <p>Emergency alerts and updates.</p>
+    </div>
+  );
+};
+
+export default Notifications;
+
+
+========================================
+FILE: src/index.css
+========================================
+
+html{
+  scroll-behavior: smooth;
+}
+*{
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+}
+
+html{
+  scroll-behavior:smooth;
+}
+
+body{
+  font-family:"Poppins", sans-serif;
+  background:#FCFAF6;
+  color:#1F1F1F;
+  overflow-x:hidden;
+}
+
+a{
+  text-decoration:none;
+  color:inherit;
+}
+
+button{
+  font-family:"Poppins", sans-serif;
+  cursor:pointer;
+}
+
+img{
+  max-width:100%;
+  display:block;
+}
+
+ul{
+  list-style:none;
+}
+
+
+========================================
+FILE: src/App.css
+========================================
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+}
+
+h1, h2, h3, h4, .logo-text {
+  font-family: 'Playfair Display', serif;
+}
+
+
+========================================
+FILE: C:\Users\NIKHIL\Downloads\HumanGrid\HumanGridGIT\HumanGrid--main\src\components\ai\AI.css
+========================================
+
+.humangrid-ai-overlay {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(15, 25, 44, 0.55);
+  backdrop-filter: blur(4px);
+  animation: humangrid-ai-fade-in 0.2s ease;
+  color: #202020;
+}
+
+.humangrid-ai-panel {
+  position: relative;
+  display: flex;
+  width: 100%;
+  max-width: 560px;
+  height: 100%;
+  flex-direction: column;
+  overflow: hidden;
+  background: #fdf9f3;
+  box-shadow: -12px 0 40px rgba(27, 42, 74, 0.2);
+}
+
+.humangrid-ai-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #ebe5dc;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.humangrid-ai-title-group {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 11px;
+}
+
+.humangrid-ai-title-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 12px;
+  background: #1b2a4a;
+  color: #c9a050;
+}
+
+.humangrid-ai-title-copy {
+  min-width: 0;
+}
+
+.humangrid-ai-title-copy > p {
+  overflow: hidden;
+  color: #1b2a4a;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 16px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.humangrid-ai-title-copy > span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  overflow: hidden;
+  color: #777777;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.humangrid-ai-close {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #777777;
+  cursor: pointer;
+}
+
+.humangrid-ai-close:hover {
+  background: #f3eee7;
+  color: #1b2a4a;
+}
+
+.humangrid-ai-close:focus-visible,
+.humangrid-ai-mode-selector select:focus-visible,
+.humangrid-ai-composer textarea:focus-visible,
+.humangrid-ai-composer button:focus-visible,
+.humangrid-ai-analysis-actions button:focus-visible,
+.humangrid-ai-analysis-actions a:focus-visible,
+.humangrid-ai-nearby-actions a:focus-visible,
+.humangrid-ai-location-warning button:focus-visible {
+  outline: 3px solid rgba(201, 160, 80, 0.4);
+  outline-offset: 2px;
+}
+
+.humangrid-ai-mode-area {
+  padding: 12px 20px;
+  border-bottom: 1px solid #ebe5dc;
+  background: rgba(255, 255, 255, 0.75);
+}
+
+.humangrid-ai-mode-selector {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #777777;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.humangrid-ai-mode-selector span {
+  flex-shrink: 0;
+}
+
+.humangrid-ai-mode-selector select {
+  min-width: 0;
+  max-width: 65%;
+  padding: 8px 30px 8px 10px;
+  border: 1px solid #dcd3c5;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #1b2a4a;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.humangrid-ai-location-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 12px 20px;
+  border-bottom: 1px solid #f1dfb8;
+  background: #fff8e8;
+  color: #744d14;
+  font-size: 12px;
+}
+
+.humangrid-ai-location-warning > svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.humangrid-ai-location-warning strong {
+  display: block;
+  font-size: 12px;
+}
+
+.humangrid-ai-location-warning p {
+  margin-top: 4px;
+  line-height: 1.5;
+}
+
+.humangrid-ai-location-warning button {
+  margin-top: 7px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #8d672a;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.humangrid-ai-body {
+  min-height: 0;
+  flex: 1;
+}
+
+.humangrid-ai-chat {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+}
+
+.humangrid-ai-messages {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 20px;
+  scroll-behavior: smooth;
+}
+
+.humangrid-ai-message {
+  display: flex;
+  margin-bottom: 15px;
+  animation: humangrid-ai-slide-up 0.22s ease;
+}
+
+.humangrid-ai-message-user {
+  justify-content: flex-end;
+}
+
+.humangrid-ai-message-assistant {
+  display: block;
+}
+
+.humangrid-ai-user-bubble,
+.humangrid-ai-text-bubble {
+  max-width: 88%;
+  padding: 11px 14px;
+  border-radius: 15px;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.humangrid-ai-user-bubble {
+  border-top-right-radius: 4px;
+  background: #1b2a4a;
+  color: #ffffff;
+}
+
+.humangrid-ai-text-bubble {
+  border-top-left-radius: 4px;
+  background: #ffffff;
+  color: #1b2a4a;
+  box-shadow: 0 5px 18px rgba(27, 42, 74, 0.06);
+}
+
+.humangrid-ai-message-label {
+  display: block;
+  margin-bottom: 4px;
+  color: inherit;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  opacity: 0.62;
+  text-transform: uppercase;
+}
+
+.humangrid-ai-assistant-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.humangrid-ai-assistant-icon {
+  width: 25px;
+  height: 25px;
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  margin-top: 2px;
+  border-radius: 50%;
+  background: rgba(201, 160, 80, 0.2);
+  color: #97722e;
+}
+
+.humangrid-ai-analysis-wrapper {
+  margin-top: 9px;
+  margin-left: 33px;
+}
+
+.humangrid-ai-loading {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-left: 33px;
+  color: #777777;
+  font-size: 13px;
+}
+
+.humangrid-ai-dots {
+  display: flex;
+  gap: 4px;
+}
+
+.humangrid-ai-dots span {
+  width: 6px;
+  height: 6px;
+  display: block;
+  border-radius: 50%;
+  background: #c9a050;
+  animation: humangrid-ai-bounce 0.9s infinite;
+}
+
+.humangrid-ai-dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.humangrid-ai-dots span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.humangrid-ai-composer {
+  padding: 13px 16px;
+  border-top: 1px solid #ebe5dc;
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.humangrid-ai-input-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 9px;
+}
+
+.humangrid-ai-composer textarea {
+  width: 100%;
+  min-height: 44px;
+  max-height: 130px;
+  resize: vertical;
+  padding: 11px 13px;
+  border: 1px solid #dcd3c5;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #202020;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.humangrid-ai-composer textarea::placeholder {
+  color: #999999;
+}
+
+.humangrid-ai-composer textarea:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.humangrid-ai-send {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: #1b2a4a;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.humangrid-ai-send:hover:not(:disabled) {
+  background: #2c416c;
+}
+
+.humangrid-ai-send:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.humangrid-ai-composer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 9px;
+}
+
+.humangrid-ai-composer-footer p {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #888888;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.humangrid-ai-composer-footer button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #97722e;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Analysis */
+
+.humangrid-ai-analysis {
+  padding: 17px;
+  border: 1px solid #e8dfd3;
+  border-radius: 15px;
+  background: #ffffff;
+  box-shadow: 0 8px 25px rgba(27, 42, 74, 0.06);
+}
+
+.humangrid-ai-analysis-critical {
+  border-color: rgba(197, 54, 54, 0.5);
+}
+
+.humangrid-ai-analysis-high {
+  border-color: rgba(201, 160, 80, 0.6);
+}
+
+.humangrid-ai-critical-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 11px;
+  border: 1px solid rgba(197, 54, 54, 0.25);
+  border-radius: 10px;
+  background: #fff0f0;
+  color: #a72d2d;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.humangrid-ai-critical-alert svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.humangrid-ai-critical-alert strong {
+  display: block;
+}
+
+.humangrid-ai-critical-alert p {
+  margin-top: 4px;
+  font-size: 11px;
+}
+
+.humangrid-ai-analysis-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.humangrid-ai-analysis-category {
+  color: #777777;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.humangrid-ai-analysis-header h3 {
+  margin-top: 5px;
+  color: #1b2a4a;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 19px;
+  line-height: 1.3;
+}
+
+.humangrid-ai-problem {
+  margin-top: 7px;
+  color: #666666;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.humangrid-ai-severity {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding: 6px 8px;
+  border-radius: 999px;
+  background: #fff4dd;
+  color: #97722e;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.humangrid-ai-analysis-critical .humangrid-ai-severity {
+  background: #fff0f0;
+  color: #b52d2d;
+}
+
+.humangrid-ai-tags,
+.humangrid-ai-service-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.humangrid-ai-tags span,
+.humangrid-ai-service-tags span {
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: #f3f0eb;
+  color: #39445a;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.humangrid-ai-tags .humangrid-ai-fallback-tag {
+  border: 1px solid #f1d79a;
+  background: #fff8e8;
+  color: #805a1c;
+}
+
+.humangrid-ai-analysis-section {
+  margin-top: 15px;
+}
+
+.humangrid-ai-analysis-section h4 {
+  margin-bottom: 7px;
+  color: #777777;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.humangrid-ai-analysis-section p,
+.humangrid-ai-analysis-section li {
+  color: #39445a;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.humangrid-ai-why {
+  padding: 10px;
+  border-radius: 10px;
+  background: #f7f4ef;
+}
+
+.humangrid-ai-action-list,
+.humangrid-ai-warnings ul,
+.humangrid-ai-next-steps {
+  margin: 0;
+  padding: 0;
+}
+
+.humangrid-ai-action-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  list-style: none;
+}
+
+.humangrid-ai-action-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+}
+
+.humangrid-ai-action-list svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: #2c985d;
+}
+
+.humangrid-ai-warnings {
+  padding: 10px;
+  border: 1px solid #f1d79a;
+  border-radius: 10px;
+  background: #fff8e8;
+}
+
+.humangrid-ai-warnings h4 {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #805a1c;
+}
+
+.humangrid-ai-warnings ul {
+  padding-left: 16px;
+  color: #744d14;
+}
+
+.humangrid-ai-next-steps {
+  padding-left: 19px;
+}
+
+.humangrid-ai-analysis-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 17px;
+  padding-top: 13px;
+  border-top: 1px solid #eee9e1;
+}
+
+.humangrid-ai-button {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 11px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.humangrid-ai-button-primary {
+  border: 1px solid #1b2a4a;
+  background: #1b2a4a;
+  color: #ffffff;
+}
+
+.humangrid-ai-button-danger {
+  border: 1px solid #c53636;
+  background: #c53636;
+  color: #ffffff;
+}
+
+.humangrid-ai-button-outline {
+  border: 1px solid #d7c8b5;
+  background: #ffffff;
+  color: #1b2a4a;
+}
+
+/* Nearby services */
+
+.humangrid-ai-empty-text {
+  color: #888888;
+  font-size: 12px;
+}
+
+.humangrid-ai-mock-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding: 8px;
+  border: 1px solid #f1d79a;
+  border-radius: 8px;
+  background: #fff8e8;
+  color: #744d14;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.humangrid-ai-mock-warning svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.humangrid-ai-nearby ul {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.humangrid-ai-nearby li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #eee9e1;
+  border-radius: 10px;
+  background: #fffdfb;
+}
+
+.humangrid-ai-nearby-copy {
+  min-width: 0;
+}
+
+.humangrid-ai-nearby-copy strong,
+.humangrid-ai-nearby-copy span {
+  display: block;
+}
+
+.humangrid-ai-nearby-copy strong {
+  overflow: hidden;
+  color: #1b2a4a;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.humangrid-ai-nearby-copy span {
+  margin-top: 3px;
+  color: #888888;
+  font-size: 10px;
+}
+
+.humangrid-ai-nearby-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 5px;
+}
+
+.humangrid-ai-nearby-actions a {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #1b2a4a;
+  color: #ffffff;
+}
+
+.humangrid-ai-nearby-actions a:last-child {
+  background: #c9a050;
+  color: #1b2a4a;
+}
+
+.humangrid-ai-toast {
+  position: absolute;
+  bottom: 85px;
+  left: 50%;
+  display: flex;
+  max-width: calc(100% - 30px);
+  align-items: center;
+  gap: 8px;
+  transform: translateX(-50%);
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #1b2a4a;
+  color: #ffffff;
+  font-size: 12px;
+  line-height: 1.4;
+  box-shadow: 0 12px 30px rgba(27, 42, 74, 0.22);
+  animation: humangrid-ai-slide-up 0.2s ease;
+}
+
+.humangrid-ai-toast svg {
+  flex-shrink: 0;
+  color: #c9a050;
+}
+
+.humangrid-ai-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@keyframes humangrid-ai-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes humangrid-ai-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes humangrid-ai-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@media (max-width: 640px) {
+  .humangrid-ai-panel {
+    max-width: 100%;
+  }
+
+  .humangrid-ai-header {
+    padding: 13px 15px;
+  }
+
+  .humangrid-ai-mode-area {
+    padding: 10px 15px;
+  }
+
+  .humangrid-ai-mode-selector {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .humangrid-ai-mode-selector select {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .humangrid-ai-messages {
+    padding: 15px;
+  }
+
+  .humangrid-ai-analysis-wrapper {
+    margin-left: 0;
+    margin-top: 8px;
+  }
+
+  .humangrid-ai-user-bubble,
+  .humangrid-ai-text-bubble {
+    max-width: 93%;
+  }
+
+  .humangrid-ai-composer-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .humangrid-ai-analysis-actions {
+    flex-direction: column;
+  }
+
+  .humangrid-ai-button {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .humangrid-ai-overlay *,
+  .humangrid-ai-overlay *::before,
+  .humangrid-ai-overlay *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+
+========================================
+FILE: C:\Users\NIKHIL\Downloads\HumanGrid\HumanGridGIT\HumanGrid--main\src\components\ai\AIModeSelector.tsx
+========================================
+
+import type { ServiceMode } from "@/types";
+
+interface AIModeSelectorProps {
+  value: ServiceMode;
+  onChange: (mode: ServiceMode) => void;
+}
+
+const MODE_OPTIONS: Array<{
+  value: ServiceMode;
+  label: string;
+}> = [
+  {
+    value: "general_emergency",
+    label: "General emergency",
+  },
+  {
+    value: "hospital",
+    label: "Medical / hospital",
+  },
+  {
+    value: "ambulance",
+    label: "Ambulance",
+  },
+  {
+    value: "police",
+    label: "Police / security",
+  },
+  {
+    value: "women_safety",
+    label: "Women safety",
+  },
+  {
+    value: "child_safety",
+    label: "Child safety",
+  },
+  {
+    value: "blood_bank",
+    label: "Blood requirement",
+  },
+  {
+    value: "food_support",
+    label: "Food support",
+  },
+  {
+    value: "shelter",
+    label: "Shelter support",
+  },
+];
+
+export function AIModeSelector({
+  value,
+  onChange,
+}: AIModeSelectorProps) {
+  return (
+    <label className="humangrid-ai-mode-selector">
+      <span>Emergency category</span>
+
+      <select
+        value={value}
+        onChange={(event) =>
+          onChange(event.target.value as ServiceMode)
+        }
+        aria-label="Select emergency category"
+      >
+        {MODE_OPTIONS.map((option) => (
+          <option
+            key={option.value}
+            value={option.value}
+          >
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+
+========================================
+FILE: C:\Users\NIKHIL\Downloads\HumanGrid\HumanGridGIT\HumanGrid--main\src\components\ai\AnalysisCard.tsx
+========================================
+
+import {
+  AlertTriangle,
+  CheckCircle2,
+  PhoneCall,
+  Radio,
+  Share2,
+  ShieldAlert,
+} from "lucide-react";
+import type {
+  EmergencyAnalysis,
+  Severity,
+} from "@/types";
+import { NearbyServices } from "./NearbyServices";
+
+const SEVERITY_LABELS: Record<
+  Severity,
+  string
+> = {
+  LOW: "Low priority",
+  MEDIUM: "Medium priority",
+  HIGH: "High priority",
+  CRITICAL: "Critical priority",
+};
+
+interface AnalysisCardProps {
+  analysis: EmergencyAnalysis;
+  onSendSOS: () => void;
+  onShareLocation: () => void;
+}
+
+export function AnalysisCard({
+  analysis,
+  onSendSOS,
+  onShareLocation,
+}: AnalysisCardProps) {
+  const actions: string[] =
+    analysis.immediate_actions ??
+    analysis.action_steps;
+
+  const warnings = analysis.warnings ?? [];
+  const nextSteps = analysis.next_steps ?? [];
+  const primaryContact = analysis.contacts[0];
+
+  return (
+    <article
+      className={`humangrid-ai-analysis humangrid-ai-analysis-${analysis.severity.toLowerCase()}`}
+      aria-label="HumanGrid AI emergency analysis"
+    >
+      {analysis.severity === "CRITICAL" && (
+        <div
+          className="humangrid-ai-critical-alert"
+          role="alert"
+        >
+          <ShieldAlert size={18} />
+
+          <div>
+            <strong>
+              Immediate emergency action may be required.
+            </strong>
+
+            <p>
+              If anyone is in immediate danger, contact local
+              emergency services now. HumanGrid AI has not contacted
+              anyone for you.
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="humangrid-ai-analysis-header">
+        <div>
+          <span className="humangrid-ai-analysis-category">
+            {analysis.category}
+          </span>
+
+          <h3>
+            {analysis.summary || analysis.problem}
+          </h3>
+
+          {analysis.problem &&
+            analysis.summary &&
+            analysis.problem !== analysis.summary && (
+              <p className="humangrid-ai-problem">
+                {analysis.problem}
+              </p>
+            )}
+        </div>
+
+        <span className="humangrid-ai-severity">
+          <AlertTriangle size={13} />
+          {analysis.severity}
+          <span className="humangrid-ai-sr-only">
+            {SEVERITY_LABELS[analysis.severity]}
+          </span>
+        </span>
+      </div>
+
+      <div className="humangrid-ai-tags">
+        {analysis.recommended_service && (
+          <span>
+            Recommended:{" "}
+            {formatLabel(analysis.recommended_service)}
+          </span>
+        )}
+
+        {analysis.source === "fallback" && (
+          <span className="humangrid-ai-fallback-tag">
+            General fallback guidance
+          </span>
+        )}
+
+        {analysis.blood_group && (
+          <span>
+            Blood group: {analysis.blood_group}
+          </span>
+        )}
+
+        {analysis.danger_level && (
+          <span>
+            Danger level: {analysis.danger_level}
+          </span>
+        )}
+      </div>
+
+      {analysis.why && (
+        <section className="humangrid-ai-analysis-section humangrid-ai-why">
+          <h4>Why this is recommended</h4>
+          <p>{analysis.why}</p>
+        </section>
+      )}
+
+      {analysis.required_services.length > 0 && (
+        <section className="humangrid-ai-analysis-section">
+          <h4>Relevant support</h4>
+
+          <div className="humangrid-ai-service-tags">
+            {analysis.required_services.map(
+              (service) => (
+                <span key={service}>{service}</span>
+              )
+            )}
+          </div>
+        </section>
+      )}
+
+      {actions.length > 0 && (
+        <section className="humangrid-ai-analysis-section">
+          <h4>Immediate actions</h4>
+
+          <ul className="humangrid-ai-action-list">
+            {actions.map((action) => (
+              <li key={action}>
+                <CheckCircle2 size={15} />
+                <span>{action}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {warnings.length > 0 && (
+        <section className="humangrid-ai-analysis-section humangrid-ai-warnings">
+          <h4>
+            <ShieldAlert size={14} />
+            Important warnings
+          </h4>
+
+          <ul>
+            {warnings.map((warning) => (
+              <li key={warning}>{warning}</li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {nextSteps.length > 0 && (
+        <section className="humangrid-ai-analysis-section">
+          <h4>Next steps</h4>
+
+          <ol className="humangrid-ai-next-steps">
+            {nextSteps.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ol>
+        </section>
+      )}
+
+      {analysis.nearby_services.length > 0 && (
+        <section className="humangrid-ai-analysis-section">
+          <h4>Nearby service suggestions</h4>
+
+          <NearbyServices
+            services={analysis.nearby_services}
+          />
+        </section>
+      )}
+
+      <div className="humangrid-ai-analysis-actions">
+        {primaryContact && (
+          <a
+            href={`tel:${primaryContact.value}`}
+            className="humangrid-ai-button humangrid-ai-button-primary"
+          >
+            <PhoneCall size={15} />
+            Call {primaryContact.label}
+          </a>
+        )}
+
+        <button
+          type="button"
+          onClick={onSendSOS}
+          className="humangrid-ai-button humangrid-ai-button-danger"
+        >
+          <Radio size={15} />
+          Open SOS
+        </button>
+
+        <button
+          type="button"
+          onClick={onShareLocation}
+          className="humangrid-ai-button humangrid-ai-button-outline"
+        >
+          <Share2 size={15} />
+          Share location
+        </button>
+      </div>
+    </article>
+  );
+}
+
+function formatLabel(value: string): string {
+  return value
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (letter) =>
+      letter.toUpperCase()
+    );
+}
+
+
+========================================
+FILE: C:\Users\NIKHIL\Downloads\HumanGrid\HumanGridGIT\HumanGrid--main\src\components\ai\ChatInterface.tsx
+========================================
+
+import {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { AlertCircle, Send } from "lucide-react";
+import type {
+  ChatMessage,
+  Coordinates,
+  ServiceMode,
+} from "@/types";
+import { analyzeEmergency } from "@/services/gemini";
+import { getServiceCard } from "@/services/emergency";
+import { MessageBubble } from "./MessageBubble";
+
+const MODE_PROMPTS: Record<
+  ServiceMode,
+  string
+> = {
+  hospital:
+    "Describe the medical emergency, symptoms, injuries, and when it started.",
+  blood_bank:
+    "What blood group is needed, how much is needed, and how urgent is it?",
+  police:
+    "Describe what happened, where it happened, and whether anyone is in immediate danger.",
+  ambulance:
+    "Describe the patient's condition and where medical transport is needed.",
+  women_safety:
+    "Tell me what is happening and whether you are in immediate danger right now.",
+  child_safety:
+    "Describe what happened, where the child was last seen, and whether the child may be in danger.",
+  food_support:
+    "How many people need food support, where are they located, and how urgently is help needed?",
+  shelter:
+    "Who needs shelter, where are they located, and are there safety or accessibility needs?",
+  general_emergency:
+    "Describe the emergency, where it is happening, and whether anyone is in immediate danger.",
+};
+
+interface ChatInterfaceProps {
+  mode: ServiceMode;
+  origin: Coordinates | null;
+  onRequestLocation: () => void;
+  onSendSOS: () => void;
+  onShareLocation: () => void;
+}
+
+export function ChatInterface({
+  mode,
+  origin,
+  onRequestLocation,
+  onSendSOS,
+  onShareLocation,
+}: ChatInterfaceProps) {
+  const [messages, setMessages] =
+    useState<ChatMessage[]>(() => [
+      greeting(mode),
+    ]);
+
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const scrollRef =
+    useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({
+      top: scrollRef.current.scrollHeight,
+      behavior: "smooth",
+    });
+  }, [messages, loading]);
+
+  async function handleSend(): Promise<void> {
+    const text = input.trim();
+
+    if (!text || loading) {
+      return;
+    }
+
+    const userMessage: ChatMessage = {
+      id: crypto.randomUUID(),
+      role: "user",
+      content: text,
+      createdAt: new Date().toISOString(),
+    };
+
+    setMessages((current) => [
+      ...current,
+      userMessage,
+    ]);
+    setInput("");
+    setLoading(true);
+
+    try {
+      const analysis = await analyzeEmergency(
+        mode,
+        text,
+        origin
+      );
+
+      const assistantMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: "",
+        analysis,
+        createdAt: new Date().toISOString(),
+      };
+
+      setMessages((current) => [
+        ...current,
+        assistantMessage,
+      ]);
+    } catch {
+      const errorMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content:
+          "HumanGrid AI could not complete that analysis. If anyone is in immediate danger, contact local emergency services directly.",
+        createdAt: new Date().toISOString(),
+      };
+
+      setMessages((current) => [
+        ...current,
+        errorMessage,
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleKeyDown(
+    event: React.KeyboardEvent<HTMLTextAreaElement>
+  ): void {
+    if (
+      event.key === "Enter" &&
+      !event.shiftKey
+    ) {
+      event.preventDefault();
+      void handleSend();
+    }
+  }
+
+  return (
+    <div className="humangrid-ai-chat">
+      <div
+        ref={scrollRef}
+        className="humangrid-ai-messages"
+        aria-live="polite"
+        aria-label="HumanGrid AI conversation"
+      >
+        {messages.map((message) => (
+          <MessageBubble
+            key={message.id}
+            message={message}
+            onSendSOS={onSendSOS}
+            onShareLocation={onShareLocation}
+          />
+        ))}
+
+        {loading && (
+          <div
+            className="humangrid-ai-loading"
+            role="status"
+          >
+            <span
+              className="humangrid-ai-dots"
+              aria-hidden="true"
+            >
+              <span />
+              <span />
+              <span />
+            </span>
+
+            Analyzing your situation...
+          </div>
+        )}
+      </div>
+
+      <div className="humangrid-ai-composer">
+        <div className="humangrid-ai-input-row">
+          <label
+            htmlFor="humangrid-ai-input"
+            className="humangrid-ai-sr-only"
+          >
+            Describe your emergency
+          </label>
+
+          <textarea
+            id="humangrid-ai-input"
+            value={input}
+            onChange={(event) =>
+              setInput(event.target.value)
+            }
+            onKeyDown={handleKeyDown}
+            rows={2}
+            disabled={loading}
+            placeholder={MODE_PROMPTS[mode]}
+          />
+
+          <button
+            type="button"
+            onClick={() => void handleSend()}
+            disabled={!input.trim() || loading}
+            aria-label="Send emergency description"
+            className="humangrid-ai-send"
+          >
+            <Send size={17} />
+          </button>
+        </div>
+
+        <div className="humangrid-ai-composer-footer">
+          <p>
+            <AlertCircle size={13} />
+            HumanGrid AI does not replace emergency professionals.
+          </p>
+
+          {!origin && (
+            <button
+              type="button"
+              onClick={onRequestLocation}
+            >
+              Enable location for nearby services
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function greeting(mode: ServiceMode): ChatMessage {
+  const card = getServiceCard(mode);
+
+  return {
+    id: crypto.randomUUID(),
+    role: "assistant",
+    content:
+      `${card.title} mode is active. ` +
+      `${MODE_PROMPTS[mode]}`,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+
+========================================
+FILE: C:\Users\NIKHIL\Downloads\HumanGrid\HumanGridGIT\HumanGrid--main\src\components\ai\HumanGridAI.tsx
+========================================
+
+import {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import {
+  CheckCircle2,
+  MapPin,
+  ShieldAlert,
+  X,
+} from "lucide-react";
+import * as Icons from "lucide-react";
+import type {
+  Coordinates,
+  ServiceMode,
+} from "@/types";
+import { getServiceCard } from "@/services/emergency";
+import {
+  getCurrentPosition,
+  LocationError,
+} from "@/services/location";
+import { ChatInterface } from "./ChatInterface";
+import { AIModeSelector } from "./AIModeSelector";
+import "./AI.css";
+
+interface HumanGridAIProps {
+  mode: ServiceMode | null;
+  onClose: () => void;
+  onModeChange?: (mode: ServiceMode) => void;
+  onOpenSOS?: () => void;
+}
+
+export function HumanGridAI({
+  mode,
+  onClose,
+  onModeChange,
+  onOpenSOS,
+}: HumanGridAIProps) {
+  const [origin, setOrigin] =
+    useState<Coordinates | null>(null);
+
+  const [locationError, setLocationError] =
+    useState<string | null>(null);
+
+  const [toast, setToast] =
+    useState<string | null>(null);
+
+  const closeButtonRef =
+    useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    function handleEscape(
+      event: KeyboardEvent
+    ): void {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    }
+
+    window.addEventListener(
+      "keydown",
+      handleEscape
+    );
+
+    return () => {
+      window.removeEventListener(
+        "keydown",
+        handleEscape
+      );
+    };
+  }, [onClose]);
+
+  useEffect(() => {
+    closeButtonRef.current?.focus();
+  }, [mode]);
+
+  useEffect(() => {
+    if (!mode) {
+      return;
+    }
+
+    void requestLocation();
+  }, [mode]);
+
+  useEffect(() => {
+    if (!toast) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setToast(null);
+    }, 4200);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [toast]);
+
+  async function requestLocation(): Promise<void> {
+    try {
+      const coordinates = await getCurrentPosition();
+
+      setOrigin(coordinates);
+      setLocationError(null);
+    } catch (error: unknown) {
+      const message =
+        error instanceof LocationError
+          ? error.message
+          : "Location access is unavailable.";
+
+      setLocationError(message);
+    }
+  }
+
+  function handleOpenSOS(): void {
+    if (onOpenSOS) {
+      onOpenSOS();
+      return;
+    }
+
+    setToast(
+      "SOS is user-controlled. Open the SOS page when you are ready."
+    );
+  }
+
+  async function handleShareLocation(): Promise<void> {
+    if (!origin) {
+      setToast(
+        "Location is not available. Enable location access and try again."
+      );
+      return;
+    }
+
+    const locationText =
+      `My HumanGrid location: ` +
+      `https://www.google.com/maps?q=${origin.lat},${origin.lng}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "HumanGrid location",
+          text: locationText,
+        });
+
+        setToast("Location sharing opened.");
+        return;
+      } catch {
+        // User cancelled sharing.
+      }
+    }
+
+    if (!navigator.clipboard) {
+      setToast(
+        "Location sharing is unavailable in this browser."
+      );
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(locationText);
+      setToast("Location link copied to clipboard.");
+    } catch {
+      setToast("The location link could not be copied.");
+    }
+  }
+
+  if (!mode) {
+    return null;
+  }
+
+  const card = getServiceCard(mode);
+
+  const Icon =
+    (Icons as unknown as Record<
+      string,
+      Icons.LucideIcon
+    >)[card.icon] ?? Icons.AlertTriangle;
+
+  return (
+    <div
+      className="humangrid-ai-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label="HumanGrid AI emergency assistant"
+    >
+      <div className="humangrid-ai-panel">
+        <header className="humangrid-ai-header">
+          <div className="humangrid-ai-title-group">
+            <span className="humangrid-ai-title-icon">
+              <Icon size={19} />
+            </span>
+
+            <div className="humangrid-ai-title-copy">
+              <p>{card.title}</p>
+
+              <span>
+                <MapPin size={12} />
+
+                {origin
+                  ? "Location available"
+                  : locationError ?? "Checking location..."}
+              </span>
+            </div>
+          </div>
+
+          <button
+            ref={closeButtonRef}
+            type="button"
+            onClick={onClose}
+            aria-label="Close HumanGrid AI"
+            className="humangrid-ai-close"
+          >
+            <X size={19} />
+          </button>
+        </header>
+
+        {onModeChange && (
+          <div className="humangrid-ai-mode-area">
+            <AIModeSelector
+              value={mode}
+              onChange={onModeChange}
+            />
+          </div>
+        )}
+
+        {locationError && (
+          <div
+            className="humangrid-ai-location-warning"
+            role="status"
+          >
+            <ShieldAlert size={17} />
+
+            <div>
+              <strong>
+                Nearby recommendations are limited
+              </strong>
+
+              <p>
+                {locationError} You can still use HumanGrid
+                AI without location access.
+              </p>
+
+              <button
+                type="button"
+                onClick={() => void requestLocation()}
+              >
+                Try location again
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="humangrid-ai-body">
+          <ChatInterface
+            key={mode}
+            mode={mode}
+            origin={origin}
+            onRequestLocation={() =>
+              void requestLocation()
+            }
+            onSendSOS={handleOpenSOS}
+            onShareLocation={() =>
+              void handleShareLocation()
+            }
+          />
+        </div>
+
+        {toast && (
+          <div
+            className="humangrid-ai-toast"
+            role="status"
+          >
+            <CheckCircle2 size={16} />
+            <span>{toast}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+========================================
+FILE: C:\Users\NIKHIL\Downloads\HumanGrid\HumanGridGIT\HumanGrid--main\src\components\ai\MessageBubble.tsx
+========================================
+
+import { Sparkles } from "lucide-react";
+import type { ChatMessage } from "@/types";
+import { AnalysisCard } from "./AnalysisCard";
+
+interface MessageBubbleProps {
+  message: ChatMessage;
+  onSendSOS: () => void;
+  onShareLocation: () => void;
+}
+
+export function MessageBubble({
+  message,
+  onSendSOS,
+  onShareLocation,
+}: MessageBubbleProps) {
+  const isUser = message.role === "user";
+
+  if (isUser) {
+    return (
+      <div className="humangrid-ai-message humangrid-ai-message-user">
+        <div className="humangrid-ai-user-bubble">
+          <span className="humangrid-ai-message-label">
+            You
+          </span>
+          <p>{message.content}</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="humangrid-ai-message humangrid-ai-message-assistant">
+      <div className="humangrid-ai-assistant-row">
+        <span className="humangrid-ai-assistant-icon">
+          <Sparkles size={14} />
+        </span>
+
+        {message.content && !message.analysis && (
+          <div className="humangrid-ai-text-bubble">
+            <span className="humangrid-ai-message-label">
+              HumanGrid AI
+            </span>
+            <p>{message.content}</p>
+          </div>
+        )}
+      </div>
+
+      {message.analysis && (
+        <div className="humangrid-ai-analysis-wrapper">
+          <AnalysisCard
+            analysis={message.analysis}
+            onSendSOS={onSendSOS}
+            onShareLocation={onShareLocation}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+========================================
+FILE: C:\Users\NIKHIL\Downloads\HumanGrid\HumanGridGIT\HumanGrid--main\src\components\ai\NearbyServices.tsx
+========================================
+
+import {
+  MapPin,
+  Navigation,
+  Phone,
+} from "lucide-react";
+import type { NearbyService } from "@/types";
+
+interface NearbyServicesProps {
+  services: NearbyService[];
+}
+
+export function NearbyServices({
+  services,
+}: NearbyServicesProps) {
+  if (services.length === 0) {
+    return (
+      <p className="humangrid-ai-empty-text">
+        Share your location to see nearby service suggestions.
+      </p>
+    );
+  }
+
+  const hasMockData = services.some(
+    (service) => service.dataSource === "mock"
+  );
+
+  return (
+    <div className="humangrid-ai-nearby">
+      {hasMockData && (
+        <div className="humangrid-ai-mock-warning">
+          <MapPin size={14} />
+          <span>
+            These are demo suggestions. Verify the provider
+            before traveling.
+          </span>
+        </div>
+      )}
+
+      <ul>
+        {services.map((service) => (
+          <li key={service.id}>
+            <div className="humangrid-ai-nearby-copy">
+              <strong>{service.name}</strong>
+              <span>
+                {service.distanceKm} km away ·{" "}
+                {service.availability}
+              </span>
+            </div>
+
+            <div className="humangrid-ai-nearby-actions">
+              <a
+                href={`tel:${service.contact.replace(
+                  /\s+/g,
+                  ""
+                )}`}
+                aria-label={`Call ${service.name}`}
+              >
+                <Phone size={14} />
+              </a>
+
+              {service.lat !== undefined &&
+                service.lng !== undefined && (
+                  <a
+                    href={`https://www.google.com/maps/dir/?api=1&destination=${service.lat},${service.lng}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={`Navigate to ${service.name}`}
+                  >
+                    <Navigation size={14} />
+                  </a>
+                )}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+
+========================================
+FILE: C:\Users\NIKHIL\Downloads\HumanGrid\HumanGridGIT\HumanGrid--main\src\components\ai\AI.css
+========================================
+
+.humangrid-ai-overlay {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(15, 25, 44, 0.55);
+  backdrop-filter: blur(4px);
+  animation: humangrid-ai-fade-in 0.2s ease;
+  color: #202020;
+}
+
+.humangrid-ai-panel {
+  position: relative;
+  display: flex;
+  width: 100%;
+  max-width: 560px;
+  height: 100%;
+  flex-direction: column;
+  overflow: hidden;
+  background: #fdf9f3;
+  box-shadow: -12px 0 40px rgba(27, 42, 74, 0.2);
+}
+
+.humangrid-ai-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #ebe5dc;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.humangrid-ai-title-group {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 11px;
+}
+
+.humangrid-ai-title-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 12px;
+  background: #1b2a4a;
+  color: #c9a050;
+}
+
+.humangrid-ai-title-copy {
+  min-width: 0;
+}
+
+.humangrid-ai-title-copy > p {
+  overflow: hidden;
+  color: #1b2a4a;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 16px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.humangrid-ai-title-copy > span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  overflow: hidden;
+  color: #777777;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.humangrid-ai-close {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #777777;
+  cursor: pointer;
+}
+
+.humangrid-ai-close:hover {
+  background: #f3eee7;
+  color: #1b2a4a;
+}
+
+.humangrid-ai-close:focus-visible,
+.humangrid-ai-mode-selector select:focus-visible,
+.humangrid-ai-composer textarea:focus-visible,
+.humangrid-ai-composer button:focus-visible,
+.humangrid-ai-analysis-actions button:focus-visible,
+.humangrid-ai-analysis-actions a:focus-visible,
+.humangrid-ai-nearby-actions a:focus-visible,
+.humangrid-ai-location-warning button:focus-visible {
+  outline: 3px solid rgba(201, 160, 80, 0.4);
+  outline-offset: 2px;
+}
+
+.humangrid-ai-mode-area {
+  padding: 12px 20px;
+  border-bottom: 1px solid #ebe5dc;
+  background: rgba(255, 255, 255, 0.75);
+}
+
+.humangrid-ai-mode-selector {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #777777;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.humangrid-ai-mode-selector span {
+  flex-shrink: 0;
+}
+
+.humangrid-ai-mode-selector select {
+  min-width: 0;
+  max-width: 65%;
+  padding: 8px 30px 8px 10px;
+  border: 1px solid #dcd3c5;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #1b2a4a;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.humangrid-ai-location-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 12px 20px;
+  border-bottom: 1px solid #f1dfb8;
+  background: #fff8e8;
+  color: #744d14;
+  font-size: 12px;
+}
+
+.humangrid-ai-location-warning > svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.humangrid-ai-location-warning strong {
+  display: block;
+  font-size: 12px;
+}
+
+.humangrid-ai-location-warning p {
+  margin-top: 4px;
+  line-height: 1.5;
+}
+
+.humangrid-ai-location-warning button {
+  margin-top: 7px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #8d672a;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.humangrid-ai-body {
+  min-height: 0;
+  flex: 1;
+}
+
+.humangrid-ai-chat {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+}
+
+.humangrid-ai-messages {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 20px;
+  scroll-behavior: smooth;
+}
+
+.humangrid-ai-message {
+  display: flex;
+  margin-bottom: 15px;
+  animation: humangrid-ai-slide-up 0.22s ease;
+}
+
+.humangrid-ai-message-user {
+  justify-content: flex-end;
+}
+
+.humangrid-ai-message-assistant {
+  display: block;
+}
+
+.humangrid-ai-user-bubble,
+.humangrid-ai-text-bubble {
+  max-width: 88%;
+  padding: 11px 14px;
+  border-radius: 15px;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.humangrid-ai-user-bubble {
+  border-top-right-radius: 4px;
+  background: #1b2a4a;
+  color: #ffffff;
+}
+
+.humangrid-ai-text-bubble {
+  border-top-left-radius: 4px;
+  background: #ffffff;
+  color: #1b2a4a;
+  box-shadow: 0 5px 18px rgba(27, 42, 74, 0.06);
+}
+
+.humangrid-ai-message-label {
+  display: block;
+  margin-bottom: 4px;
+  color: inherit;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  opacity: 0.62;
+  text-transform: uppercase;
+}
+
+.humangrid-ai-assistant-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.humangrid-ai-assistant-icon {
+  width: 25px;
+  height: 25px;
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  margin-top: 2px;
+  border-radius: 50%;
+  background: rgba(201, 160, 80, 0.2);
+  color: #97722e;
+}
+
+.humangrid-ai-analysis-wrapper {
+  margin-top: 9px;
+  margin-left: 33px;
+}
+
+.humangrid-ai-loading {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-left: 33px;
+  color: #777777;
+  font-size: 13px;
+}
+
+.humangrid-ai-dots {
+  display: flex;
+  gap: 4px;
+}
+
+.humangrid-ai-dots span {
+  width: 6px;
+  height: 6px;
+  display: block;
+  border-radius: 50%;
+  background: #c9a050;
+  animation: humangrid-ai-bounce 0.9s infinite;
+}
+
+.humangrid-ai-dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.humangrid-ai-dots span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.humangrid-ai-composer {
+  padding: 13px 16px;
+  border-top: 1px solid #ebe5dc;
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.humangrid-ai-input-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 9px;
+}
+
+.humangrid-ai-composer textarea {
+  width: 100%;
+  min-height: 44px;
+  max-height: 130px;
+  resize: vertical;
+  padding: 11px 13px;
+  border: 1px solid #dcd3c5;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #202020;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.humangrid-ai-composer textarea::placeholder {
+  color: #999999;
+}
+
+.humangrid-ai-composer textarea:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.humangrid-ai-send {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: #1b2a4a;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.humangrid-ai-send:hover:not(:disabled) {
+  background: #2c416c;
+}
+
+.humangrid-ai-send:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.humangrid-ai-composer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 9px;
+}
+
+.humangrid-ai-composer-footer p {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #888888;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.humangrid-ai-composer-footer button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #97722e;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Analysis */
+
+.humangrid-ai-analysis {
+  padding: 17px;
+  border: 1px solid #e8dfd3;
+  border-radius: 15px;
+  background: #ffffff;
+  box-shadow: 0 8px 25px rgba(27, 42, 74, 0.06);
+}
+
+.humangrid-ai-analysis-critical {
+  border-color: rgba(197, 54, 54, 0.5);
+}
+
+.humangrid-ai-analysis-high {
+  border-color: rgba(201, 160, 80, 0.6);
+}
+
+.humangrid-ai-critical-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 11px;
+  border: 1px solid rgba(197, 54, 54, 0.25);
+  border-radius: 10px;
+  background: #fff0f0;
+  color: #a72d2d;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.humangrid-ai-critical-alert svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.humangrid-ai-critical-alert strong {
+  display: block;
+}
+
+.humangrid-ai-critical-alert p {
+  margin-top: 4px;
+  font-size: 11px;
+}
+
+.humangrid-ai-analysis-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.humangrid-ai-analysis-category {
+  color: #777777;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.humangrid-ai-analysis-header h3 {
+  margin-top: 5px;
+  color: #1b2a4a;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 19px;
+  line-height: 1.3;
+}
+
+.humangrid-ai-problem {
+  margin-top: 7px;
+  color: #666666;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.humangrid-ai-severity {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding: 6px 8px;
+  border-radius: 999px;
+  background: #fff4dd;
+  color: #97722e;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.humangrid-ai-analysis-critical .humangrid-ai-severity {
+  background: #fff0f0;
+  color: #b52d2d;
+}
+
+.humangrid-ai-tags,
+.humangrid-ai-service-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.humangrid-ai-tags span,
+.humangrid-ai-service-tags span {
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: #f3f0eb;
+  color: #39445a;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.humangrid-ai-tags .humangrid-ai-fallback-tag {
+  border: 1px solid #f1d79a;
+  background: #fff8e8;
+  color: #805a1c;
+}
+
+.humangrid-ai-analysis-section {
+  margin-top: 15px;
+}
+
+.humangrid-ai-analysis-section h4 {
+  margin-bottom: 7px;
+  color: #777777;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.humangrid-ai-analysis-section p,
+.humangrid-ai-analysis-section li {
+  color: #39445a;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.humangrid-ai-why {
+  padding: 10px;
+  border-radius: 10px;
+  background: #f7f4ef;
+}
+
+.humangrid-ai-action-list,
+.humangrid-ai-warnings ul,
+.humangrid-ai-next-steps {
+  margin: 0;
+  padding: 0;
+}
+
+.humangrid-ai-action-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  list-style: none;
+}
+
+.humangrid-ai-action-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+}
+
+.humangrid-ai-action-list svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: #2c985d;
+}
+
+.humangrid-ai-warnings {
+  padding: 10px;
+  border: 1px solid #f1d79a;
+  border-radius: 10px;
+  background: #fff8e8;
+}
+
+.humangrid-ai-warnings h4 {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #805a1c;
+}
+
+.humangrid-ai-warnings ul {
+  padding-left: 16px;
+  color: #744d14;
+}
+
+.humangrid-ai-next-steps {
+  padding-left: 19px;
+}
+
+.humangrid-ai-analysis-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 17px;
+  padding-top: 13px;
+  border-top: 1px solid #eee9e1;
+}
+
+.humangrid-ai-button {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 11px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.humangrid-ai-button-primary {
+  border: 1px solid #1b2a4a;
+  background: #1b2a4a;
+  color: #ffffff;
+}
+
+.humangrid-ai-button-danger {
+  border: 1px solid #c53636;
+  background: #c53636;
+  color: #ffffff;
+}
+
+.humangrid-ai-button-outline {
+  border: 1px solid #d7c8b5;
+  background: #ffffff;
+  color: #1b2a4a;
+}
+
+/* Nearby services */
+
+.humangrid-ai-empty-text {
+  color: #888888;
+  font-size: 12px;
+}
+
+.humangrid-ai-mock-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding: 8px;
+  border: 1px solid #f1d79a;
+  border-radius: 8px;
+  background: #fff8e8;
+  color: #744d14;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.humangrid-ai-mock-warning svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.humangrid-ai-nearby ul {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.humangrid-ai-nearby li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #eee9e1;
+  border-radius: 10px;
+  background: #fffdfb;
+}
+
+.humangrid-ai-nearby-copy {
+  min-width: 0;
+}
+
+.humangrid-ai-nearby-copy strong,
+.humangrid-ai-nearby-copy span {
+  display: block;
+}
+
+.humangrid-ai-nearby-copy strong {
+  overflow: hidden;
+  color: #1b2a4a;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.humangrid-ai-nearby-copy span {
+  margin-top: 3px;
+  color: #888888;
+  font-size: 10px;
+}
+
+.humangrid-ai-nearby-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 5px;
+}
+
+.humangrid-ai-nearby-actions a {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #1b2a4a;
+  color: #ffffff;
+}
+
+.humangrid-ai-nearby-actions a:last-child {
+  background: #c9a050;
+  color: #1b2a4a;
+}
+
+.humangrid-ai-toast {
+  position: absolute;
+  bottom: 85px;
+  left: 50%;
+  display: flex;
+  max-width: calc(100% - 30px);
+  align-items: center;
+  gap: 8px;
+  transform: translateX(-50%);
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #1b2a4a;
+  color: #ffffff;
+  font-size: 12px;
+  line-height: 1.4;
+  box-shadow: 0 12px 30px rgba(27, 42, 74, 0.22);
+  animation: humangrid-ai-slide-up 0.2s ease;
+}
+
+.humangrid-ai-toast svg {
+  flex-shrink: 0;
+  color: #c9a050;
+}
+
+.humangrid-ai-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@keyframes humangrid-ai-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes humangrid-ai-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes humangrid-ai-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@media (max-width: 640px) {
+  .humangrid-ai-panel {
+    max-width: 100%;
+  }
+
+  .humangrid-ai-header {
+    padding: 13px 15px;
+  }
+
+  .humangrid-ai-mode-area {
+    padding: 10px 15px;
+  }
+
+  .humangrid-ai-mode-selector {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .humangrid-ai-mode-selector select {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .humangrid-ai-messages {
+    padding: 15px;
+  }
+
+  .humangrid-ai-analysis-wrapper {
+    margin-left: 0;
+    margin-top: 8px;
+  }
+
+  .humangrid-ai-user-bubble,
+  .humangrid-ai-text-bubble {
+    max-width: 93%;
+  }
+
+  .humangrid-ai-composer-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .humangrid-ai-analysis-actions {
+    flex-direction: column;
+  }
+
+  .humangrid-ai-button {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .humangrid-ai-overlay *,
+  .humangrid-ai-overlay *::before,
+  .humangrid-ai-overlay *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+
+========================================
+FILE: C:\Users\NIKHIL\Downloads\HumanGrid\HumanGridGIT\HumanGrid--main\src\components\Features.css
+========================================
+
+.services {
+  padding: 60px 80px;
+  text-align: center;
+  background: #fdfaf5;
+  scroll-margin-top: 90px;
+}
+
+.services-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 34px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.services-heart {
+  color: #C9A050;
+  font-size: 32px;
+  margin: 12px 0 20px;
+}
+
+.group-label {
+  color: #C9A050;
+  font-size: 22px;
+  font-weight: 700;
+  font-family: 'Playfair Display', serif;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin: 40px 0 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  justify-content: center;
+}
+
+.group-label::before,
+.group-label::after {
+  content: "";
+  height: 1px;
+  width: 100px;
+  flex: 1;
+  max-width: 150px;
+}
+
+.group-label::before {
+  background: linear-gradient(to left, #C9A050, transparent);
+}
+
+.group-label::after {
+  background: linear-gradient(to right, #C9A050, transparent);
+}
+
+.services-group {
+  margin-bottom: 10px;
+}
+
+.services-grid {
+  display: grid;
+  gap: 20px;
+}
+
+.grid-4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.grid-2 {
+  grid-template-columns: repeat(2, 1fr);
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.service-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 30px 20px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.05);
+  text-align: center;
+  transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
+}
+
+.service-card:hover {
+  transform: translateY(-8px);
+  background: linear-gradient(135deg, #fffaf0, #fdf3e0);
+  box-shadow: 0 12px 30px rgba(201, 160, 80, 0.35);
+}
+
+.icon-circle {
+  width: 70px;
+  height: 70px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  background: #f7ede1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-circle img {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+}
+
+.service-card h4 {
+    font-family: 'Playfair Display', serif;
+font-weight: 600;
+  font-size: 18px;
+  margin-bottom: 8px;
+}
+
+.service-card p {
+  font-size: 13px;
+  color: #777;
+  margin-bottom: 14px;
+}
+
+.arrow {
+  color: #C9A050;
+  font-weight: 700;
+  font-size: 20px;
+  display: inline-block;
+  margin-top: 6px;
+  transition: transform 0.3s ease;
+}
+
+.service-card:hover .arrow {
+  transform: translateX(6px);
+}
+
+.services-banner {
+  margin-top: 60px;
+  background: #f7ede1;
+  border-radius: 16px;
+  padding: 24px 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-align: left;
+}
+
+.banner-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.banner-heart {
+  color: #C9A050;
+  font-size: 20px;
+}
+
+.arrow-small {
+  color: #C9A050;
+}
+
+.services-banner strong {
+  display: block;
+  font-size: 17px;
+}
+
+.services-banner p {
+  margin: 4px 0 0;
+  color: #777;
+  font-size: 13px;
+}
+
+
+========================================
+FILE: C:\Users\NIKHIL\Downloads\HumanGrid\HumanGridGIT\HumanGrid--main\src\components\Footer.css
+========================================
+
+.footer {
+  background: #1B2A4A;
+  color: #f0f0f0;
+  padding: 50px 80px 20px;
+}
+
+.footer-top {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 30px;
+  margin-bottom: 30px;
+}
+
+.footer-brand h3 {
+  color: #C9A050;
+  font-size: 22px;
+  margin-bottom: 6px;
+}
+
+.footer-brand p {
+  color: #b0b8c9;
+  font-size: 13px;
+}
+
+.footer-col h4 {
+  color: #fff;
+  font-size: 15px;
+  margin-bottom: 14px;
+}
+
+.footer-col ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.footer-col li {
+  color: #b0b8c9;
+  font-size: 13px;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+.footer-col li:hover {
+  color: #C9A050;
+}
+
+.footer-bottom {
+  border-top: 1px solid rgba(255,255,255,0.1);
+  padding-top: 16px;
+  text-align: center;
+  font-size: 12px;
+  color: #8a92a6;
+}
+
+
+========================================
+FILE: C:\Users\NIKHIL\Downloads\HumanGrid\HumanGridGIT\HumanGrid--main\src\components\Hero.css
+========================================
+
+.hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 60px 48px;
+  background-color: #fdf9f3;
+  font-family: "Segoe UI", sans-serif;
+  flex-wrap: wrap;
+}
+
+.hero-left {
+  max-width: 520px;
+}
+
+.hero-left h1 {
+font-family: 'Playfair Display' , serif;
+  font-size: 44px;
+  font-weight: 700;
+  color: #1a1a1a;
+  line-height: 1.2;
+  margin-bottom: 20px;
+}
+
+.hero-subtext {
+  font-size: 18px;
+  color: #333;
+  margin-bottom: 12px;
+}
+
+.hero-desc {
+  font-size: 15px;
+  color: #666;
+  margin-bottom: 28px;
+  line-height: 1.5;
+}
+
+.hero-buttons {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 40px;
+}
+
+.btn-primary {
+  background: #1a2b4c;
+  color: #fff;
+  border: none;
+  padding: 14px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-secondary {
+  background: transparent;
+  border: 1px solid #c8963e;
+  color: #c8963e;
+  padding: 14px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.hero-trust {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.trust-avatars {
+  display: flex;
+}
+
+.avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #ddd;
+  border: 2px solid #fdf9f3;
+  margin-left: -10px;
+}
+
+.avatar:first-child {
+  margin-left: 0;
+}
+
+.hero-trust p {
+  font-size: 13px;
+  color: #555;
+  margin: 0;
+}
+
+.hero-right {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: visible;
+  max-width: 480px;
+}
+
+.care.png {
+  width: 280px ;
+  max-width: 280px;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+}
+
+.support-card {
+  position: absolute;
+  bottom: 20px;
+  right: 0;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 260px;
+}
+
+.support-icon {
+  font-size: 22px;
+}
+
+.support-card strong {
+  font-size: 14px;
+  color: #1a1a1a;
+}
+
+.support-card p {
+  font-size: 12px;
+  color: #777;
+  margin: 2px 0 0;
+}
+
+@media (max-width: 900px) {
+  .hero {
+    flex-direction: column;
+    text-align: center;
+  }
+  .hero-left {
+    max-width: 100%;
+  }
+  .hero-buttons {
+    justify-content: center;
+  }
+  .hero-trust {
+    justify-content: center;
+  }
+}
+.badge-decoration {
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 55%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+
+========================================
+FILE: C:\Users\NIKHIL\Downloads\HumanGrid\HumanGridGIT\HumanGrid--main\src\components\HowItWorks.css
+========================================
+
+.how-it-works {
+  padding: 80px 8%;
+}
+
+.section-header {
+  text-align: center;
+  margin-bottom: 50px;
+}
+
+.section-header h2 {
+  font-size: 40px;
+  margin-bottom: 10px;
+}
+
+.section-header p {
+  color: #666;
+}
+
+.steps-container {
+  display: flex;
+  gap: 25px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.step-card {
+  width: 320px;
+  padding: 30px;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+}
+
+.step-number {
+  font-size: 28px;
+  font-weight: bold;
+  color: #c9a050;
+}
+
+.step-card h3 {
+  margin-top: 15px;
+}
+
+.step-card p {
+  margin-top: 10px;
+  color: #666;
+}
+
+
+========================================
+FILE: C:\Users\NIKHIL\Downloads\HumanGrid\HumanGridGIT\HumanGrid--main\src\components\Login.css
+========================================
+
+/* ===== Login Page — HumanGrid theme ===== */
+
+.login-page {
+  animation: fadeIn 0.5s ease;
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: #fdfaf5;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ---------- Left visual panel ---------- */
+
+.login-visual {
+  position: relative;
+  background: linear-gradient(
+    160deg,
+    #1b2a4a 0%,
+    #24365e 55%,
+    #1b2a4a 100%
+  );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60px;
+  overflow: hidden;
+}
+
+.login-visual::before {
+  content: "";
+  position: absolute;
+  width: 480px;
+  height: 480px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(201, 160, 80, 0.18), transparent 70%);
+  top: -120px;
+  right: -120px;
+}
+
+.login-visual::after {
+  content: "";
+  position: absolute;
+  width: 360px;
+  height: 360px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(201, 160, 80, 0.12), transparent 70%);
+  bottom: -100px;
+  left: -80px;
+}
+
+.login-visual-overlay {
+  position: relative;
+  z-index: 1;
+  max-width: 420px;
+  color: #f5f2ea;
+}
+
+.login-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(201, 160, 80, 0.15);
+  border: 1px solid rgba(201, 160, 80, 0.4);
+  color: #c9a050;
+  font-size: 24px;
+  margin-bottom: 24px;
+}
+
+.login-visual-overlay h2 {
+  font-family: "Playfair Display", serif;
+  font-size: 34px;
+  line-height: 1.25;
+  margin-bottom: 16px;
+  color: #ffffff;
+}
+
+.login-visual-overlay > p {
+  font-family: "Inter", sans-serif;
+  font-size: 15px;
+  color: #b0b8c9;
+  line-height: 1.7;
+  margin-bottom: 32px;
+}
+
+.login-visual-points {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.login-visual-points li {
+  font-family: "Inter", sans-serif;
+  font-size: 14px;
+  color: #f0f0f0;
+  padding-left: 26px;
+  position: relative;
+}
+
+.login-visual-points li::before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  color: #c9a050;
+  font-weight: 700;
+}
+
+/* ---------- Right form panel ---------- */
+.login-form-side {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 400px;
+}
+
+.login-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 36px;
+}
+
+.login-logo-mark {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+}
+
+.login-logo h1 {
+  font-family: "Playfair Display", serif;
+  font-size: 22px;
+  color: #1b2a4a;
+  line-height: 1.1;
+}
+
+.login-tagline {
+  font-family: "Inter", sans-serif;
+  font-size: 12px;
+  color: #c9a050;
+  letter-spacing: 0.3px;
+}
+
+.login-title {
+  font-family: "Playfair Display", serif;
+  font-size: 30px;
+  color: #1b2a4a;
+  margin-bottom: 6px;
+}
+
+.login-subtitle {
+  font-family: "Inter", sans-serif;
+  font-size: 14px;
+  color: #777;
+  margin-bottom: 30px;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.login-label {
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1b2a4a;
+  margin-bottom: 6px;
+  margin-top: 16px;
+}
+
+.login-label:first-of-type {
+  margin-top: 0;
+}
+
+.login-input {
+  font-family: "Inter", sans-serif;
+  font-size: 14px;
+  padding: 13px 16px;
+  border-radius: 10px;
+  border: 1px solid #e6ddd0;
+  background: #ffffff;
+  color: #1b2a4a;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.login-input::placeholder {
+  color: #a9a9a9;
+}
+
+.login-input:focus {
+  border-color: #c9a050;
+  box-shadow: 0 0 0 3px rgba(201, 160, 80, 0.15);
+}
+
+.login-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 18px;
+}
+
+.login-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  color: #777;
+  cursor: pointer;
+}
+
+.login-checkbox input {
+  accent-color: #c9a050;
+  width: 15px;
+  height: 15px;
+}
+
+.login-link {
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  color: #c9a050;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.login-link:hover {
+  text-decoration: underline;
+}
+
+.login-link-strong {
+  font-weight: 700;
+}
+
+.login-btn {
+  margin-top: 26px;
+  background: #1b2a4a;
+  color: #ffffff;
+  font-family: "Inter", sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 14px 20px;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 0.25s ease, transform 0.2s ease, box-shadow 0.25s ease;
+}
+
+.login-btn:hover:not(:disabled) {
+  background: #24365e;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(27, 42, 74, 0.25);
+}
+
+.login-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.login-btn-arrow {
+  transition: transform 0.25s ease;
+}
+
+.login-btn:hover:not(:disabled) .login-btn-arrow {
+  transform: translateX(4px);
+}
+
+.login-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 28px 0 20px;
+  font-family: "Inter", sans-serif;
+  font-size: 12px;
+  color: #a9a9a9;
+}
+
+.login-divider::before,
+.login-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #e6ddd0;
+}
+
+.login-social-row {
+  display: flex;
+  gap: 12px;
+}
+
+.login-social-btn {
+  flex: 1;
+  padding: 11px;
+  border-radius: 10px;
+  border: 1px solid #e6ddd0;
+  background: #ffffff;
+  color: #1b2a4a;
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.login-social-btn:hover {
+  border-color: #c9a050;
+  background: #fdf3e0;
+}
+
+.login-footer-text {
+  margin-top: 26px;
+  text-align: center;
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  color: #777;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 900px) {
+  .login-page {
+    grid-template-columns: 1fr;
+  }
+  .login-visual {
+    display: none;
+  }
+  .login-form-side {
+    padding: 60px 24px;
+  }
+}
+
+
+========================================
+FILE: C:\Users\NIKHIL\Downloads\HumanGrid\HumanGridGIT\HumanGrid--main\src\components\Navbar.css
+========================================
+
+.navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 60px;
+  background-color: #fdf9f3;
+  font-family: "Segoe UI", sans-serif;
+}
+
+.navbar-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo-img {
+  height: 100px;
+  width: 100px;
+  object-fit: contain;
+}
+
+.logo-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.brand-name {
+  font-size: 34px;
+  font-weight: 700;
+  font-family: 'playfair display' serif;
+  color: #1a1a1a;
+}
+
+.brand-tagline {
+  font-size: 15px;
+  font-weight: 500;
+  color: #b8895a;
+}
+
+.navbar-links {
+  display: flex;
+  list-style: none;
+  gap: 32px;
+  margin: 0;
+  padding: 0;
+}
+
+.navbar-links li a {
+  text-decoration: none;
+  color: #333;
+  font-size: 15px;
+  font-weight: 500;
+  padding-bottom: 4px;
+}
+
+.navbar-links li a.active-link {
+  color: #1a1a1a;
+  border-bottom: 2px solid #c8963e;
+}
+
+.navbar-links li a:hover {
+  color: #c8963e;
+}
+
+.navbar-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+.btn-login {
+  background: transparent;
+  border: 1px solid #c8963e;
+  color: #c8963e;
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-getstarted {
+  background: #c8963e;
+  border: none;
+  color: #fff;
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-getstarted:hover {
+  background: #b17f2f;
+}
+
+.navbar-toggle {
+  display: none;
+  flex-direction: column;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.navbar-toggle span {
+  width: 25px;
+  height: 3px;
+  background: #333;
+}
+
+@media (max-width: 768px) {
+  .navbar-links,
+  .navbar-buttons {
+    display: none;
+  }
+  .navbar-toggle {
+    display: flex;
+  }
+}
+
+
+========================================
+FILE: C:\Users\NIKHIL\Downloads\HumanGrid\HumanGridGIT\HumanGrid--main\src\components\Signup.css
+========================================
+
+/* Signup.css */
+
+/* Import Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Playfair+Display:wght@700&display=swap');
+
+:root {
+  /* Colors */
+  --primary-color: #C9A050;
+  --secondary-color: #1B2A4A;
+  --background-color: #fdfaf5;
+  --card-background-color: #ffffff;
+  --text-color: #1a1a1a;
+  --error-color: #e74c3c;
+  --success-color: #28a745;
+  --border-color: #e0e0e0;
+  --focus-border-color: #C9A050; /* Primary color for focus */
+
+  /* Typography */
+  --font-heading: 'Playfair Display', serif;
+  --font-body: 'Inter', sans-serif;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  color: var(--text-color);
+  background-color: var(--background-color);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+.signup-container {
+  width: 100%;
+  max-width: 450px;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.signup-card {
+  background-color: var(--card-background-color);
+  padding: 40px;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  text-align: center;
+}
+
+.signup-title {
+  font-family: var(--font-heading);
+  color: var(--secondary-color);
+  font-size: 2.2em;
+  margin-bottom: 30px;
+  font-weight: 700;
+}
+
+.signup-error {
+  background-color: #fdeded;
+  color: var(--error-color);
+  border: 1px solid var(--error-color);
+  padding: 12px;
+  border-radius: 5px;
+  margin-bottom: 20px;
+  font-size: 0.95em;
+  text-align: left;
+}
+
+.signup-success {
+  background-color: #e6ffe6;
+  color: var(--success-color);
+  border: 1px solid var(--success-color);
+  padding: 12px;
+  border-radius: 5px;
+  margin-bottom: 20px;
+  font-size: 0.95em;
+  text-align: left;
+}
+
+.signup-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-bottom: 25px;
+}
+
+.form-group {
+  text-align: left;
+  position: relative;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: var(--secondary-color);
+  font-size: 0.95em;
+}
+
+.form-group input[type="text"],
+.form-group input[type="email"],
+.form-group input[type="password"],
+.form-group input[type="tel"] {
+  width: 100%;
+  padding: 12px 15px;
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  font-size: 1em;
+  color: var(--text-color);
+  background-color: var(--card-background-color);
+  box-sizing: border-box; /* Ensures padding doesn't increase total width */
+}
+
+.form-group input::placeholder {
+  color: #a0a0a0;
+}
+
+.form-group input:focus {
+  border-color: var(--focus-border-color);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(201, 160, 80, 0.2); /* Light primary glow */
+}
+
+/* Password visibility toggle */
+.password-group input {
+  padding-right: 50px; /* Make space for the button */
+}
+
+.password-toggle {
+  position: absolute;
+  right: 10px;
+  top: 60%; /* Adjust based on label and input height */
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--primary-color);
+  font-size: 0.9em;
+  cursor: pointer;
+  padding: 5px;
+}
+
+.password-toggle:hover {
+  text-decoration: underline;
+}
+
+/* Phone OTP button */
+.form-group .phone-otp-button {
+  position: absolute;
+  right: 10px;
+  top: 60%; /* Adjust based on label and input height */
+  transform: translateY(-50%);
+  background: none;
+  border: 1px solid var(--primary-color);
+  color: var(--primary-color);
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 0.85em;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.form-group .phone-otp-button:hover:not(:disabled) {
+  background-color: var(--primary-color);
+  color: var(--card-background-color);
+}
+
+.form-group .phone-otp-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+
+/* Checkbox styling */
+.checkbox-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 5px;
+}
+
+.checkbox-group input[type="checkbox"] {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--primary-color);
+  border-radius: 3px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.checkbox-group input[type="checkbox"]:checked {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.checkbox-group input[type="checkbox"]:checked::before {
+  content: '✔'; /* Checkmark character */
+  font-size: 14px;
+  color: var(--card-background-color);
+}
+
+.checkbox-group label {
+  margin-bottom: 0;
+  font-weight: normal;
+  color: var(--text-color);
+  font-size: 0.9em;
+  cursor: pointer;
+}
+
+.checkbox-group label a {
+  color: var(--primary-color);
+  text-decoration: none;
+}
+
+.checkbox-group label a:hover {
+  text-decoration: underline;
+}
+
+
+/* Buttons */
+.primary-button, .secondary-button {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 5px;
+  font-size: 1.1em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
+
+.primary-button {
+  background-color: var(--primary-color);
+  color: var(--card-background-color);
+  margin-top: 10px;
+}
+
+.primary-button:hover:not(:disabled) {
+  background-color: #b58f46; /* Slightly darker primary */
+}
+
+.secondary-button {
+  background-color: var(--secondary-color);
+  color: var(--card-background-color);
+}
+
+.secondary-button:hover:not(:disabled) {
+  background-color: #15223e; /* Slightly darker secondary */
+}
+
+.primary-button:disabled, .secondary-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Loading animation */
+.spinner {
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-top: 3px solid var(--card-background-color);
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.signup-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 25px 0;
+  color: #b0b0b0;
+}
+
+.signup-divider::before,
+.signup-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.signup-divider:not(:empty)::before {
+  margin-right: .25em;
+}
+
+.signup-divider:not(:empty)::after {
+  margin-left: .25em;
+}
+
+.signup-footer {
+  margin-top: 30px;
+  font-size: 0.95em;
+  color: var(--text-color);
+}
+
+.signup-footer a {
+  color: var(--primary-color);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.signup-footer a:hover {
+  text-decoration: underline;
+}
+
+/* Responsive design */
+@media (max-width: 600px) {
+  .signup-card {
+    padding: 30px 20px;
+    margin: 10px; /* Add some margin on smaller screens */
+  }
+
+  .signup-title {
+    font-size: 1.8em;
+    margin-bottom: 25px;
+  }
+
+  .primary-button, .secondary-button {
+    font-size: 1em;
+    padding: 10px;
+  }
+
+  .form-group input {
+    font-size: 0.95em;
+  }
+}
+
+
+========================================
+FILE: C:\Users\NIKHIL\Downloads\HumanGrid\HumanGridGIT\HumanGrid--main\src\components\SOSButton.css
+========================================
+
+.sos-button {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  background: #d32f2f;
+  color: #fff;
+  border: none;
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  cursor: pointer;
+  z-index: 999;
+  box-shadow: 0 4px 20px rgba(211, 47, 47, 0.5);
+  animation: pulse 1.8s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.08);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+.sos-button {
+  animation: pulse 1.5s infinite;
+}
+
+.sos-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.sos-modal {
+  background: #fff;
+  border-radius: 16px;
+  padding: 30px;
+  width: 340px;
+  text-align: center;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+}
+
+.sos-modal h3 {
+  color: #1B2A4A;
+  font-family: 'Playfair Display', serif;
+  margin-bottom: 10px;
+}
+
+.sos-location {
+  font-size: 13px;
+  color: #777;
+  margin-bottom: 20px;
+}
+
+.sos-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sos-option {
+  padding: 12px;
+  border-radius: 10px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 15px;
+  color: #fff;
+}
+
+.sos-option.ambulance { background: #C9A050; }
+.sos-option.police { background: #1B2A4A; }
+.sos-option.fire { background: #d32f2f; }
+
+.sos-close {
+  margin-top: 20px;
+  background: none;
+  border: 1px solid #ccc;
+  padding: 8px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #555;
+}
