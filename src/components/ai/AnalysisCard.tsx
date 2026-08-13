@@ -14,7 +14,7 @@ export function AnalysisCard({ analysis, onSendSOS, onShareLocation }: AnalysisC
   const actions: string[] = analysis.immediate_actions ?? analysis.action_steps;
   const warnings = analysis.warnings ?? [];
   const nextSteps = analysis.next_steps ?? [];
-  const primaryContact = analysis.contacts;[0]
+  const primaryContact = analysis.contacts[0];
 
   return (
     <article className={`humangrid-ai-analysis humangrid-ai-analysis-${analysis.severity.toLowerCase()}`} aria-label="HumanGrid AI emergency analysis">
