@@ -1,124 +1,85 @@
-export type ServiceMode =
-  | "hospital"
-  | "police"
-  | "blood_bank"
-  | "shelter"
-  | "women_safety"
-  | "child_safety"
-  | "food_support"
-  | "ambulance"
-  | "general_emergency";
-
-export type Severity =
-  | "LOW"
-  | "MEDIUM"
-  | "HIGH"
-  | "CRITICAL";
-
-export type AnalysisSource =
-  | "gemini"
-  | "fallback";
-
-export interface ServiceCardDefinition {
-  mode: ServiceMode;
-  title: string;
-  description: string;
-  icon: string;
-}
-
-export interface NearbyService {
-  id: string;
-  name: string;
-  distanceKm: number;
-  availability: string;
-  contact: string;
-  address?: string;
-  lat?: number;
-  lng?: number;
-  dataSource?: "mock" | "verified";
-}
-
 export interface Coordinates {
   lat: number;
   lng: number;
   accuracy?: number;
 }
 
-export interface EmergencyAnalysis {
-  problem: string;
-  category: string;
-  severity: Severity;
+export type ServiceMode =
+  | "hospital"
+  | "blood_bank"
+  | "police"
+  | "ambulance"
+  | "women_safety"
+  | "child_safety"
+  | "food_support"
+  | "shelter"
+  | "general_emergency";
 
-  required_services: string[];
-  action_steps: string[];
-  immediate_actions?: string[];
+export type Severity = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 
-  contacts: EmergencyContactSuggestion[];
-  nearby_services: NearbyService[];
-  mode: ServiceMode;
-
-  emergency_type?: string;
-  summary?: string;
-  recommended_service?: ServiceMode;
-  why?: string;
-  warnings?: string[];
-  next_steps?: string[];
-
-  blood_group?: string;
-  danger_level?: string;
-  source?: AnalysisSource;
-}
+export type EmergencyType =
+  | "medical"
+  | "accident"
+  | "fire"
+  | "police"
+  | "women_safety"
+  | "child_safety"
+  | "blood_requirement"
+  | "food_requirement"
+  | "shelter_requirement"
+  | "missing_person"
+  | "disaster"
+  | "animal_emergency"
+  | "general";
 
 export interface EmergencyContactSuggestion {
   label: string;
   value: string;
 }
 
+export interface NearbyService {
+  id: string;
+  name: string;
+  lat: number;
+  lng: number;
+  distanceKm: number;
+  availability: string;
+  contact: string;
+  dataSource: "mock" | "live";
+}
+
+export interface EmergencyAnalysis {
+  problem: string;
+  category: string;
+  severity: Severity;
+  required_services: string[];
+  action_steps: string[];
+  immediate_actions: string[];
+  contacts: EmergencyContactSuggestion[];
+  nearby_services: NearbyService[];
+  mode: ServiceMode;
+  emergency_type: string;
+  summary: string;
+  recommended_service: ServiceMode;
+  why: string;
+  warnings: string[];
+  next_steps: string[];
+  blood_group?: string;
+  danger_level?: string;
+  source: "gemini" | "fallback";
+}
+
 export interface ChatMessage {
   id: string;
-  role: "user" | "assistant" | "system";
+  role: "user" | "assistant";
   content: string;
   analysis?: EmergencyAnalysis;
   createdAt: string;
 }
 
-export interface UserProfile {
-  id: string;
-  fullName: string;
-  email: string;
-  phone?: string;
-  emergencyContactName?: string;
-  emergencyContactPhone?: string;
-  savedLocations: SavedLocation[];
-}
-
-export interface SavedLocation {
-  id: string;
-  label: string;
-  lat: number;
-  lng: number;
-}
-
-export type NotificationType =
-  | "request_accepted"
-  | "volunteer_assigned"
-  | "ambulance_dispatched"
-  | "emergency_completed";
-
-export interface AppNotification {
-  id: string;
-  type: NotificationType;
-  title: string;
-  message: string;
-  createdAt: string;
-  read: boolean;
-}
-
-export interface RequestHistoryItem {
-  id: string;
+export interface ServiceCardDefinition {
   mode: ServiceMode;
-  problem: string;
-  severity: Severity;
-  createdAt: string;
-  status: "open" | "in_progress" | "resolved";
+  title: string;
+  description: string;
+  icon: string;
 }
