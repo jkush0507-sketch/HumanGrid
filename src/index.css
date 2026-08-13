@@ -13,13 +13,14 @@ body,
 #root {
   width: 100%;
   min-height: 100%;
+  overflow-x: hidden;
 }
 
 body {
   font-family: "Poppins", sans-serif;
   background: #FCFAF6;
   color: #1F1F1F;
-  overflow-x: hidden;
+  line-height: 1.6;
 }
 
 a {
@@ -42,22 +43,13 @@ ul {
   list-style: none;
 }
 
-/* Responsive typography base */
 h1, h2, h3, h4, h5, h6 {
   line-height: 1.2;
   word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
-/* Ensure containers never exceed viewport */
-main,
-section,
-header,
-footer,
-nav {
-  max-width: 100%;
-}
-
-/* Mobile-first spacing adjustments */
+/* Mobile-first responsive typography */
 @media (max-width: 480px) {
   body {
     font-size: 14px;
@@ -74,4 +66,14 @@ nav {
   h3 {
     font-size: clamp(1.1rem, 3.5vw, 1.25rem);
   }
+}
+
+/* Ensure containers never exceed viewport */
+main,
+section,
+header,
+footer,
+nav,
+div {
+  max-width: 100%;
 }
