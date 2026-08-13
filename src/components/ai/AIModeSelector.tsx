@@ -1,4 +1,4 @@
-import type { ServiceMode } from "@/types";
+import type { ServiceMode } from "../../types";
 
 interface AIModeSelectorProps {
   value: ServiceMode;

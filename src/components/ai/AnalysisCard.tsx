@@ -9,7 +9,7 @@ import {
 import type {
   EmergencyAnalysis,
   Severity,
-} from "@/types";
+} from "../../types";
 import { NearbyServices } from "./NearbyServices";
 
 const SEVERITY_LABELS: Record<
@@ -135,7 +135,7 @@ export function AnalysisCard({
 
           <div className="humangrid-ai-service-tags">
             {analysis.required_services.map(
-              (service) => (
+              (service: string) => (
                 <span key={service}>{service}</span>
               )
             )}
@@ -166,7 +166,7 @@ export function AnalysisCard({
           </h4>
 
           <ul>
-            {warnings.map((warning) => (
+            {warnings.map((warning: string) => (
               <li key={warning}>{warning}</li>
             ))}
           </ul>
@@ -178,7 +178,7 @@ export function AnalysisCard({
           <h4>Next steps</h4>
 
           <ol className="humangrid-ai-next-steps">
-            {nextSteps.map((step) => (
+            {nextSteps.map((step: string) => (
               <li key={step}>{step}</li>
             ))}
           </ol>
