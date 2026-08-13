@@ -32,21 +32,23 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <DashboardHeader />
+      <DashboardHeader notificationCount={3} />
 
-      <main className="max-w-7xl mx-auto px-4 py-6 sm:py-8">
-        <section className="mb-8 sm:mb-12">
-          <h1 className="font-playfair text-3xl sm:text-4xl font-bold text-primary mb-2">
+      <main className="max-w-7xl mx-auto px-4 py-8">
+        {/* Hero */}
+        <section className="mb-12">
+          <h1 className="font-playfair text-4xl font-bold text-primary mb-2">
             {getGreeting()}, Jatin.
           </h1>
-          <p className="text-base sm:text-xl text-gray-600">How can HumanGrid help you today?</p>
+          <p className="text-xl text-gray-600">How can HumanGrid help you today?</p>
         </section>
 
-        <section className="mb-8 sm:mb-12">
-          <h2 className="font-playfair text-xl sm:text-2xl font-semibold text-primary mb-6">
+        {/* Emergency Cards */}
+        <section className="mb-12">
+          <h2 className="font-playfair text-2xl font-semibold text-primary mb-6">
             Emergency Services
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {isLoading
               ? Array(8).fill(0).map((_, i) => (
                   <EmergencyCard key={i} {...emergencyCards[0]} isLoading />
@@ -57,9 +59,10 @@ const Dashboard = () => {
           </div>
         </section>
 
-        <section className="bg-primary rounded-2xl p-6 sm:p-8 text-white">
-          <h2 className="font-playfair text-xl sm:text-2xl font-semibold mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
+        {/* Quick Actions */}
+        <section className="bg-primary rounded-2xl p-8 text-white">
+          <h2 className="font-playfair text-2xl font-semibold mb-4">Quick Actions</h2>
+          <div className="grid md:grid-cols-3 gap-4">
             <button
               onClick={() => navigate('/map')}
               className="bg-white/10 hover:bg-white/20 p-4 rounded-lg transition-colors text-left"
@@ -68,7 +71,7 @@ const Dashboard = () => {
               <p className="text-sm text-gray-300">Find nearby services</p>
             </button>
             <button
-              onClick={() => navigate('/ai')}
+              onClick={() => navigate('/chat')}
               className="bg-white/10 hover:bg-white/20 p-4 rounded-lg transition-colors text-left"
             >
               <p className="font-semibold">Chat Assistant</p>

@@ -1,8 +1,14 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import type { Session, User } from '@supabase/supabase-js';
-import { isSupabaseConfigured, supabase } from '@/lib/supabaseClient';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
+import type { Session, User } from "@supabase/supabase-js";
+import { isSupabaseConfigured, supabase } from "@/lib/supabaseClient";
 
-interface AuthContextValue {
+export interface AuthContextValue {
   user: User | null;
   session: Session | null;
   loading: boolean;
@@ -19,73 +25,153 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(isSupabaseConfigured);
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
-      setLoading(false);
       return;
     }
 
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
+    let mounted = true;
+
+    async function initializeAuth(): Promise<void> {
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (!mounted) {
+          return;
+        }
+        setSession(data.session);
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void initializeAuth();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      if (!mounted) {
+        return;
+      }
+      setSession(newSession);
       setLoading(false);
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      setSession(newSession);
-    });
-
-    return () => listener.subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const value: AuthContextValue = {
     user: session?.user ?? null,
     session,
     loading,
+
     async signInWithPassword(email, password) {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password,
+      });
+
+      if (error) {
+        throw error;
+      }
     },
+
     async signUpWithPassword(email, password, fullName) {
       const { error } = await supabase.auth.signUp({
-        email,
+        email: email.trim().toLowerCase(),
         password,
-        options: { data: { full_name: fullName } },
+        options: {
+          data: {
+            full_name: fullName.trim(),
+          },
+        },
       });
-      if (error) throw error;
+
+      if (error) {
+        throw error;
+      }
     },
+
     async signInWithGoogle() {
       const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo: window.location.origin + '/dashboard' },
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/dashboard`,
+        },
       });
-      if (error) throw error;
+
+      if (error) {
+        throw error;
+      }
     },
+
     async signInWithPhone(phone) {
-      const { error } = await supabase.auth.signInWithOtp({ phone });
-      if (error) throw error;
-    },
-    async verifyPhoneOtp(phone, token) {
-      const { error } = await supabase.auth.verifyOtp({ phone, token, type: 'sms' });
-      if (error) throw error;
-    },
-    async sendPasswordReset(email) {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin + '/login',
+      const { error } = await supabase.auth.signInWithOtp({
+        phone: phone.trim(),
       });
-      if (error) throw error;
+
+      if (error) {
+        throw error;
+      }
     },
+
+    async verifyPhoneOtp(phone, token) {
+      const { error } = await supabase.auth.verifyOtp({
+        phone: phone.trim(),
+        token: token.trim(),
+        type: "sms",
+      });
+
+      if (error) {
+        throw error;
+      }
+    },
+
+    async sendPasswordReset(email) {
+      const { error } = await supabase.auth.resetPasswordForEmail(
+        email.trim().toLowerCase(),
+        {
+          redirectTo: `${window.location.origin}/login`,
+        }
+      );
+
+      if (error) {
+        throw error;
+      }
+    },
+
     async signOut() {
-      await supabase.auth.signOut();
+      const { error } = await supabase.auth.signOut();
+
+      if (error) {
+        throw error;
+      }
+
+      setSession(null);
     },
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth(): AuthContextValue {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within an AuthProvider');
-  return ctx;
+  const context = useContext(AuthContext);
+
+  if (!context) {
+    throw new Error(
+      "useAuth must be used within an AuthProvider"
+    );
+  }
+
+  return context;
 }

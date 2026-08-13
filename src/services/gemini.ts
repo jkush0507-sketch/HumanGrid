@@ -1,234 +1,698 @@
-import type { Coordinates, EmergencyAnalysis, ServiceMode, Severity } from '@/types';
-import { getContactsForMode, getNearbyServices } from './emergency';
+import type {
+  Coordinates,
+  EmergencyAnalysis,
+  ServiceMode,
+  Severity,
+} from "@/types";
+import {
+  getContactsForMode,
+  getNearbyServices,
+} from "./emergency";
 
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
-const GEMINI_MODEL = (import.meta.env.VITE_GEMINI_MODEL as string | undefined) || 'gemini-1.5-flash';
+const GEMINI_API_KEY = import.meta.env
+  .VITE_GEMINI_API_KEY as string | undefined;
 
-export const isGeminiConfigured = Boolean(GEMINI_API_KEY);
+const GEMINI_MODEL =
+  (import.meta.env.VITE_GEMINI_MODEL as
+    | string
+    | undefined) || "gemini-1.5-flash";
 
-const GEMINI_ENDPOINT = (model: string) =>
+export const isGeminiConfigured =
+  Boolean(GEMINI_API_KEY);
+
+const GEMINI_ENDPOINT = (
+  model: string
+): string =>
   `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
 
-/**
- * One reusable system instruction per mode. This is the entire mechanism by which
- * the single HumanGrid AI Core changes behavior — no separate bots, just a different
- * instruction + schema constraint depending on the selected service card.
- */
-const MODE_INSTRUCTIONS: Record<ServiceMode, string> = {
-  hospital: `You are the HumanGrid AI Core running in HOSPITAL mode. Triage medical emergencies described by the user.
-Classify the medical category (e.g. cardiac, trauma, respiratory), assess severity, and give short, safe, non-diagnostic first-response guidance (e.g. "call emergency services", "avoid unnecessary movement", "monitor breathing"). Never provide dosages or medical treatment instructions — only immediate safety actions and instructions to seek professional care.`,
-  blood_bank: `You are the HumanGrid AI Core running in BLOOD BANK mode. Identify the blood group requested (if mentioned) and the urgency of the request. If no blood group is mentioned, ask for it via the "problem" restatement and set category to "Blood group unspecified".`,
-  police: `You are the HumanGrid AI Core running in POLICE mode. Classify the reported incident (e.g. theft, assault, harassment, accident, fraud), assess priority, and give short lawful next-step guidance such as contacting authorities, sharing location, and preserving evidence. Never give instructions that could interfere with an active investigation.`,
-  ambulance: `You are the HumanGrid AI Core running in AMBULANCE mode. Assess how urgently transport is needed and give short safety guidance while transport is arranged.`,
-  women_safety: `You are the HumanGrid AI Core running in WOMEN SAFETY mode. Assess the danger level from the description, and give short, calm, actionable safety guidance (e.g. move to a public/well-lit area, contact a trusted person, alert nearby authorities). Be sensitive and non-judgmental.`,
-  child_safety: `You are the HumanGrid AI Core running in CHILD SAFETY mode. Treat every report as high urgency. Give short, clear steps for a missing or endangered child (e.g. notify police immediately, share a recent photo and last known location, alert nearby security/venue staff, avoid splitting up search efforts unsafely).`,
-  food_support: `You are the HumanGrid AI Core running in FOOD SUPPORT mode. Identify the type of food assistance needed (e.g. immediate meal, ongoing supply, for how many people) and point toward community resources.`,
-  shelter: `You are the HumanGrid AI Core running in SHELTER SUPPORT mode. Identify who needs shelter (individual/family, any accessibility or safety needs) and the urgency, and point toward shelter resources.`,
+const MODE_INSTRUCTIONS: Record<
+  ServiceMode,
+  string
+> = {
+  hospital: `
+You are HumanGrid AI in hospital-assistance mode.
+
+Help the user understand the urgency of a possible medical emergency.
+Give short, safe, non-diagnostic guidance. Never prescribe medicines,
+dosages, or treatment plans. Never claim to be a doctor.
+
+For unconsciousness, severe bleeding, difficulty breathing, chest pain,
+suspected stroke, major trauma, or serious accidents, classify the situation
+as HIGH or CRITICAL and prioritize emergency escalation.
+`,
+
+  blood_bank: `
+You are HumanGrid AI in blood-bank mode.
+
+Help identify blood group, quantity, urgency, and patient-support needs.
+Recommend contacting a verified blood bank, hospital, or emergency service.
+Never invent blood availability, donors, hospitals, phone numbers, or locations.
+`,
+
+  police: `
+You are HumanGrid AI in police and security mode.
+
+Help with threats, violence, theft, harassment, missing people, and security
+emergencies. Prioritize reaching a safer place, contacting authorities, and
+sharing location with a trusted person. Do not encourage confrontation.
+Never claim that police have been contacted.
+`,
+
+  ambulance: `
+You are HumanGrid AI in ambulance mode.
+
+Prioritize urgent medical transport and emergency escalation. Give short safety
+guidance while help is being arranged. Never claim that an ambulance has been
+dispatched.
+`,
+
+  women_safety: `
+You are HumanGrid AI in women-safety mode.
+
+Prioritize immediate personal safety. Suggest moving to a public, well-lit, or
+trusted location when possible. Suggest contacting a trusted person and local
+emergency authorities when necessary. Never blame the user and never claim
+that anyone was notified.
+`,
+
+  child_safety: `
+You are HumanGrid AI in child-safety mode.
+
+Prioritize the child's immediate safety. For a missing, endangered, injured,
+or abused child, recommend contacting responsible adults and authorities
+immediately. Never encourage unsafe searching or confrontation.
+`,
+
+  food_support: `
+You are HumanGrid AI in food-support mode.
+
+Help clarify whether the user needs a meal, food supplies, or ongoing support.
+Ask how many people need help and where they are located. Do not invent
+organizations, availability, phone numbers, or locations.
+`,
+
+  shelter: `
+You are HumanGrid AI in shelter-support mode.
+
+Help identify who needs safe shelter, urgency, accessibility needs, and safety
+concerns. Recommend verified shelters, local authorities, or relief groups.
+Do not invent bed availability, organizations, phone numbers, or addresses.
+`,
+
+  general_emergency: `
+You are HumanGrid AI in general-emergency mode.
+
+Classify the situation as medical, accident, fire, police/security,
+personal safety, child safety, disaster, missing person, animal emergency,
+food support, shelter support, or general emergency.
+
+Prioritize immediate safety and emergency escalation. If there may be immediate
+danger to life, classify the situation as HIGH or CRITICAL and tell the user
+to contact local emergency services immediately.
+
+Never claim that HumanGrid, police, ambulance, volunteers, hospitals, or any
+authority has been contacted. Do not invent providers or locations.
+`,
 };
 
-const RESPONSE_SCHEMA_HINT = `Respond ONLY with a single JSON object (no markdown, no code fences, no commentary) matching exactly this shape:
+const RESPONSE_SCHEMA_HINT = `
+Return only one valid JSON object. Do not return markdown, code fences,
+or explanatory text outside the JSON object.
+
+Use this shape:
+
 {
-  "problem": string,          // one-sentence restatement of the user's situation
-  "category": string,         // short category label
-  "severity": "LOW" | "MEDIUM" | "HIGH" | "CRITICAL",
-  "required_services": string[],  // e.g. ["Hospital", "Ambulance", "Doctor"]
-  "action_steps": string[],   // 2-5 short, immediately actionable steps
-  "blood_group": string | null,   // only relevant for blood bank mode, else null
-  "danger_level": string | null   // only relevant for women/child safety modes, else null
-}`;
+  "emergency_type": "medical | accident | fire | police | women_safety | child_safety | blood_requirement | food_requirement | shelter_requirement | missing_person | disaster | animal_emergency | general",
+  "severity": "LOW | MEDIUM | HIGH | CRITICAL",
+  "summary": "short safe summary",
+  "problem": "one-sentence restatement",
+  "category": "short category label",
+  "immediate_actions": ["2 to 5 short actions"],
+  "action_steps": ["same or compatible immediate actions"],
+  "recommended_service": "hospital | blood_bank | police | ambulance | women_safety | child_safety | food_support | shelter | general_emergency",
+  "required_services": ["relevant services"],
+  "why": "short reason",
+  "warnings": ["important safety warnings"],
+  "next_steps": ["clear next steps"],
+  "blood_group": "string or null",
+  "danger_level": "string or null"
+}
+
+For critical situations, the first action must prioritize contacting local emergency
+services or moving away from immediate danger when safe.
+
+Never claim that a call, dispatch, notification, SOS, or report has already happened.
+`;
 
 interface RawGeminiAnalysis {
-  problem: string;
-  category: string;
-  severity: Severity;
-  required_services: string[];
-  action_steps: string[];
+  emergency_type?: string;
+  severity?: Severity;
+  summary?: string;
+  problem?: string;
+  category?: string;
+  immediate_actions?: string[];
+  action_steps?: string[];
+  recommended_service?: ServiceMode;
+  required_services?: string[];
+  why?: string;
+  warnings?: string[];
+  next_steps?: string[];
   blood_group?: string | null;
   danger_level?: string | null;
 }
 
-/**
- * Runs the user's free-text description through Gemini using the instruction
- * for the currently selected mode, then enriches the structured result with
- * live-ish nearby services and quick-dial contacts to produce a complete
- * EmergencyAnalysis ready for the UI.
- */
+interface GeminiResponseData {
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{
+        text?: string;
+      }>;
+    };
+  }>;
+}
+
+interface AnalysisResult {
+  raw: RawGeminiAnalysis;
+  source: "gemini" | "fallback";
+}
+
 export async function analyzeEmergency(
   mode: ServiceMode,
   userInput: string,
   origin: Coordinates | null
 ): Promise<EmergencyAnalysis> {
-  const raw = isGeminiConfigured
-    ? await callGemini(mode, userInput)
-    : fallbackAnalysis(mode, userInput);
+  const cleanInput = userInput.trim();
 
-  const nearby_services = origin ? await getNearbyServices(mode, origin) : [];
-  const contacts = getContactsForMode(mode);
+  const result = isGeminiConfigured
+    ? await callGeminiSafely(mode, cleanInput)
+    : {
+        raw: fallbackAnalysis(mode, cleanInput),
+        source: "fallback" as const,
+      };
+
+  const nearbyServices = origin
+    ? await getNearbyServices(mode, origin)
+    : [];
 
   return {
-    problem: raw.problem,
-    category: raw.category,
-    severity: raw.severity,
-    required_services: raw.required_services,
-    action_steps: raw.action_steps,
-    contacts,
-    nearby_services,
+    problem: result.raw.problem ?? "Emergency reported.",
+    category:
+      result.raw.category ?? defaultCategory(mode),
+    severity:
+      result.raw.severity ?? "MEDIUM",
+    required_services:
+      result.raw.required_services ?? [],
+    action_steps:
+      result.raw.action_steps ??
+      result.raw.immediate_actions ??
+      [],
+    immediate_actions:
+      result.raw.immediate_actions ??
+      result.raw.action_steps ??
+      [],
+    contacts: getContactsForMode(mode),
+    nearby_services: nearbyServices,
     mode,
-    blood_group: raw.blood_group ?? undefined,
-    danger_level: raw.danger_level ?? undefined,
+    emergency_type:
+      result.raw.emergency_type ??
+      defaultEmergencyType(mode),
+    summary:
+      result.raw.summary ??
+      "The situation needs appropriate support.",
+    recommended_service:
+      result.raw.recommended_service ?? mode,
+    why:
+      result.raw.why ??
+      "This is the selected support category.",
+    warnings: result.raw.warnings ?? [],
+    next_steps: result.raw.next_steps ?? [],
+    blood_group:
+      result.raw.blood_group ?? undefined,
+    danger_level:
+      result.raw.danger_level ?? undefined,
+    source: result.source,
   };
 }
 
-async function callGemini(mode: ServiceMode, userInput: string): Promise<RawGeminiAnalysis> {
-  const systemInstruction = `${MODE_INSTRUCTIONS[mode]}\n\n${RESPONSE_SCHEMA_HINT}`;
+async function callGeminiSafely(
+  mode: ServiceMode,
+  userInput: string
+): Promise<AnalysisResult> {
+  try {
+    const raw = await callGemini(mode, userInput);
 
+    return {
+      raw: sanitizeAnalysis(raw, mode, userInput),
+      source: "gemini",
+    };
+  } catch {
+    return {
+      raw: fallbackAnalysis(mode, userInput),
+      source: "fallback",
+    };
+  }
+}
+
+async function callGemini(
+  mode: ServiceMode,
+  userInput: string
+): Promise<RawGeminiAnalysis> {
   const body = {
     system_instruction: {
-      parts: [{ text: systemInstruction }],
+      parts: [
+        {
+          text:
+            `${MODE_INSTRUCTIONS[mode]}\n` +
+            RESPONSE_SCHEMA_HINT,
+        },
+      ],
     },
     contents: [
       {
-        role: 'user',
+        role: "user",
         parts: [{ text: userInput }],
       },
     ],
     generationConfig: {
-      temperature: 0.3,
-      responseMimeType: 'application/json',
+      temperature: 0.2,
+      responseMimeType: "application/json",
     },
   };
 
-  try {
-    const res = await fetch(GEMINI_ENDPOINT(GEMINI_MODEL), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+  const response = await fetch(
+    GEMINI_ENDPOINT(GEMINI_MODEL),
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify(body),
-    });
-
-    if (!res.ok) {
-      throw new Error(`Gemini API error: ${res.status}`);
     }
+  );
 
-    const data = await res.json();
-    const text: string | undefined = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) throw new Error('Empty response from Gemini');
-
-    const parsed = JSON.parse(stripCodeFences(text)) as RawGeminiAnalysis;
-    return sanitizeRaw(parsed);
-  } catch (err) {
-    // Network failure, bad key, or malformed response — degrade gracefully
-    // rather than leaving the user without any guidance.
-    // eslint-disable-next-line no-console
-    console.error('[HumanGrid] Gemini call failed, using local fallback classifier.', err);
-    return fallbackAnalysis(mode, userInput);
+  if (!response.ok) {
+    throw new Error(
+      `Gemini request failed: ${response.status}`
+    );
   }
+
+  const data =
+    (await response.json()) as GeminiResponseData;
+
+  const text =
+    data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+  if (!text) {
+    throw new Error("Gemini returned an empty response");
+  }
+
+  const parsed: unknown = JSON.parse(
+    stripCodeFences(text)
+  );
+
+  if (!isRecord(parsed)) {
+    throw new Error(
+      "Gemini returned an invalid response"
+    );
+  }
+
+  return parsed as RawGeminiAnalysis;
 }
 
-function stripCodeFences(text: string): string {
-  return text.trim().replace(/^```(json)?/i, '').replace(/```$/i, '').trim();
-}
+function sanitizeAnalysis(
+  raw: RawGeminiAnalysis,
+  mode: ServiceMode,
+  userInput: string
+): RawGeminiAnalysis {
+  const severity = isSeverity(raw.severity)
+    ? raw.severity
+    : "MEDIUM";
 
-function sanitizeRaw(raw: Partial<RawGeminiAnalysis>): RawGeminiAnalysis {
-  const validSeverities: Severity[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
+  const immediateActions =
+    normalizeStrings(raw.immediate_actions);
+
+  const actionSteps =
+    normalizeStrings(raw.action_steps);
+
+  const safeActions =
+    immediateActions.length > 0
+      ? immediateActions
+      : actionSteps.length > 0
+        ? actionSteps
+        : defaultActions(severity);
+
   return {
-    problem: raw.problem || 'Situation reported by user.',
-    category: raw.category || 'General emergency',
-    severity: validSeverities.includes(raw.severity as Severity) ? (raw.severity as Severity) : 'MEDIUM',
-    required_services: Array.isArray(raw.required_services) ? raw.required_services : [],
-    action_steps: Array.isArray(raw.action_steps) ? raw.action_steps : [],
+    emergency_type:
+      raw.emergency_type ??
+      defaultEmergencyType(mode),
+    severity,
+    summary:
+      raw.summary ??
+      "The situation needs appropriate support.",
+    problem:
+      raw.problem ??
+      userInput ??
+      "Emergency situation reported.",
+    category:
+      raw.category ??
+      defaultCategory(mode),
+    immediate_actions: safeActions,
+    action_steps: safeActions,
+    recommended_service:
+      isServiceMode(raw.recommended_service)
+        ? raw.recommended_service
+        : mode,
+    required_services:
+      normalizeStrings(raw.required_services)
+        .length > 0
+        ? normalizeStrings(raw.required_services)
+        : [mode],
+    why:
+      raw.why ??
+      "This is the relevant support category for the selected mode.",
+    warnings:
+      normalizeStrings(raw.warnings),
+    next_steps:
+      normalizeStrings(raw.next_steps).length > 0
+        ? normalizeStrings(raw.next_steps)
+        : [
+            "Contact an appropriate local emergency or support service.",
+          ],
     blood_group: raw.blood_group ?? null,
     danger_level: raw.danger_level ?? null,
   };
 }
 
-/**
- * Lightweight rule-based classifier used when no Gemini API key is configured
- * (e.g. local UI preview) or if the live call fails. Keeps the product fully
- * demoable without external dependencies while preserving the exact same
- * output contract as the AI path.
- */
-function fallbackAnalysis(mode: ServiceMode, userInput: string): RawGeminiAnalysis {
+function fallbackAnalysis(
+  mode: ServiceMode,
+  userInput: string
+): RawGeminiAnalysis {
   const text = userInput.toLowerCase();
-  const critical = /chest pain|not breathing|unconscious|missing|stabbed|bleeding heavily|can't breathe|cannot breathe/.test(
-    text
+
+  const critical =
+    /not breathing|cannot breathe|can't breathe|unconscious|severe bleeding|bleeding heavily|chest pain|heart attack|active fire|immediate danger|being attacked|child in danger/.test(
+      text
+    );
+
+  const high =
+    /accident|injured|assault|threat|unsafe|stolen|missing|violence|fire|flood|earthquake/.test(
+      text
+    );
+
+  const severity: Severity = critical
+    ? "CRITICAL"
+    : high
+      ? "HIGH"
+      : "MEDIUM";
+
+  const actions = defaultActionsForMode(
+    mode,
+    severity
   );
-  const high = /stolen|assault|unsafe|threat|accident|injured|fire/.test(text);
 
-  const severity: Severity = critical ? 'CRITICAL' : high ? 'HIGH' : 'MEDIUM';
-
-  const byMode: Record<ServiceMode, RawGeminiAnalysis> = {
-    hospital: {
-      problem: userInput,
-      category: 'Medical emergency',
-      severity,
-      required_services: ['Hospital', 'Ambulance', 'Doctor'],
-      action_steps: ['Call emergency services.', 'Avoid unnecessary movement.', 'Monitor breathing.'],
-    },
-    blood_bank: {
-      problem: userInput,
-      category: 'Blood request',
-      severity: critical ? 'CRITICAL' : 'HIGH',
-      required_services: ['Blood Bank'],
-      action_steps: ['Contact the nearest blood bank.', 'Confirm blood group and quantity needed.'],
-      blood_group: extractBloodGroup(userInput),
-    },
-    police: {
-      problem: userInput,
-      category: 'Theft or incident report',
-      severity: high ? 'HIGH' : 'MEDIUM',
-      required_services: ['Police'],
-      action_steps: ['Contact authorities.', 'Share the location.', 'Preserve evidence.'],
-    },
-    ambulance: {
-      problem: userInput,
-      category: 'Transport emergency',
-      severity,
-      required_services: ['Ambulance'],
-      action_steps: ['Call emergency services.', 'Stay in a safe, accessible location.'],
-    },
-    women_safety: {
-      problem: userInput,
-      category: 'Personal safety concern',
-      severity: high ? 'HIGH' : 'MEDIUM',
-      required_services: ['Police', 'Trusted Contact'],
-      action_steps: ['Move to a public, well-lit area if possible.', 'Alert a trusted contact.', 'Consider activating SOS.'],
-      danger_level: high ? 'Elevated' : 'Moderate',
-    },
-    child_safety: {
-      problem: userInput,
-      category: 'Missing or endangered child',
-      severity: 'CRITICAL',
-      required_services: ['Police'],
-      action_steps: [
-        'Notify police immediately.',
-        'Share a recent photo and last known location.',
-        'Alert nearby security or venue staff.',
-      ],
-      danger_level: 'Critical',
-    },
-    food_support: {
-      problem: userInput,
-      category: 'Food assistance request',
-      severity: 'LOW',
-      required_services: ['NGO', 'Community Kitchen'],
-      action_steps: ['Locate the nearest community kitchen.', 'Check NGO hours before traveling.'],
-    },
-    shelter: {
-      problem: userInput,
-      category: 'Shelter request',
-      severity: high ? 'HIGH' : 'MEDIUM',
-      required_services: ['Shelter'],
-      action_steps: ['Locate the nearest available shelter.', 'Call ahead to confirm space.'],
-    },
+  return {
+    emergency_type: defaultEmergencyType(mode),
+    severity,
+    summary:
+      "AI analysis is temporarily unavailable. These are general emergency guidance steps.",
+    problem:
+      userInput || "Emergency situation reported.",
+    category: defaultCategory(mode),
+    immediate_actions: actions,
+    action_steps: actions,
+    recommended_service: mode,
+    required_services: [mode],
+    why:
+      "This is a fallback recommendation based on the selected mode.",
+    warnings: [
+      "AI analysis is temporarily unavailable.",
+      "Verify important details with an appropriate professional or local service.",
+    ],
+    next_steps: [
+      "Contact an appropriate local emergency or support service.",
+      "Do not treat this fallback guidance as a diagnosis or official dispatch.",
+    ],
+    blood_group:
+      mode === "blood_bank"
+        ? extractBloodGroup(userInput)
+        : null,
+    danger_level:
+      mode === "women_safety" ||
+      mode === "child_safety"
+        ? severity === "CRITICAL"
+          ? "Critical"
+          : "Elevated"
+        : null,
   };
-
-  return byMode[mode];
 }
 
-function extractBloodGroup(text: string): string | null {
-  const match = text.match(/\b(A|B|AB|O)\s?(\+|positive|-|negative)\b/i);
-  if (!match) return null;
+function defaultActionsForMode(
+  mode: ServiceMode,
+  severity: Severity
+): string[] {
+  if (severity === "CRITICAL") {
+    return [
+      "Contact local emergency services immediately.",
+      "Move away from immediate danger if safe.",
+      "Stay with the affected person if possible.",
+    ];
+  }
+
+  switch (mode) {
+    case "hospital":
+      return [
+        "Contact a medical professional or emergency service.",
+        "Avoid unnecessary movement after serious injury.",
+        "Monitor breathing and responsiveness.",
+      ];
+
+    case "ambulance":
+      return [
+        "Contact emergency services for transport.",
+        "Stay in a safe and accessible location.",
+        "Keep relevant medical information ready.",
+      ];
+
+    case "police":
+      return [
+        "Move to a safer location if possible.",
+        "Contact local police or emergency authorities.",
+        "Share your location with a trusted person.",
+      ];
+
+    case "women_safety":
+      return [
+        "Move to a public or well-lit location if possible.",
+        "Alert a trusted person.",
+        "Contact emergency authorities if in immediate danger.",
+      ];
+
+    case "child_safety":
+      return [
+        "Contact responsible adults and authorities immediately.",
+        "Share a recent photo and last known location.",
+        "Avoid unsafe searching or confrontation.",
+      ];
+
+    case "blood_bank":
+      return [
+        "Confirm blood group and quantity with the hospital.",
+        "Contact a verified blood bank or hospital.",
+        "Keep hospital and contact details ready.",
+      ];
+
+    case "food_support":
+      return [
+        "Confirm how many people need food.",
+        "Contact a verified support organization.",
+        "Share the collection or delivery location safely.",
+      ];
+
+    case "shelter":
+      return [
+        "Move to a safe location if in immediate danger.",
+        "Contact a verified shelter or relief organization.",
+        "Confirm availability before traveling.",
+      ];
+
+    case "general_emergency":
+      return [
+        "Move away from immediate danger if safe.",
+        "Contact the appropriate local emergency service.",
+        "Share your location with a trusted person.",
+      ];
+
+    default:
+      return [
+        "Contact local emergency or support services.",
+        "Move to a safe location if necessary.",
+      ];
+  }
+}
+
+function defaultActions(
+  severity: Severity
+): string[] {
+  return severity === "CRITICAL"
+    ? [
+        "Contact local emergency services immediately.",
+        "Move away from immediate danger if safe.",
+      ]
+    : [
+        "Contact an appropriate local support service.",
+        "Move to a safe location if necessary.",
+      ];
+}
+
+function defaultEmergencyType(
+  mode: ServiceMode
+): string {
+  switch (mode) {
+    case "hospital":
+    case "ambulance":
+      return "medical";
+
+    case "blood_bank":
+      return "blood_requirement";
+
+    case "police":
+      return "police";
+
+    case "women_safety":
+      return "women_safety";
+
+    case "child_safety":
+      return "child_safety";
+
+    case "food_support":
+      return "food_requirement";
+
+    case "shelter":
+      return "shelter_requirement";
+
+    case "general_emergency":
+      return "general";
+
+    default:
+      return "general";
+  }
+}
+
+function defaultCategory(
+  mode: ServiceMode
+): string {
+  switch (mode) {
+    case "hospital":
+      return "Medical emergency";
+
+    case "blood_bank":
+      return "Blood requirement";
+
+    case "police":
+      return "Police or security emergency";
+
+    case "ambulance":
+      return "Medical transport";
+
+    case "women_safety":
+      return "Women safety concern";
+
+    case "child_safety":
+      return "Child safety concern";
+
+    case "food_support":
+      return "Food support request";
+
+    case "shelter":
+      return "Shelter support request";
+
+    case "general_emergency":
+      return "General emergency";
+
+    default:
+      return "General emergency";
+  }
+}
+
+function extractBloodGroup(
+  text: string
+): string | null {
+  const match = text.match(
+    /\b(A|B|AB|O)\s?(\+|positive|-|negative)\b/i
+  );
+
+  if (!match) {
+    return null;
+  }
+
   const group = match[1].toUpperCase();
-  const sign = /pos|\+/i.test(match[2]) ? '+' : '-';
+  const sign = /pos|\+/i.test(match[2])
+    ? "+"
+    : "-";
+
   return `${group}${sign}`;
+}
+
+function normalizeStrings(
+  value: unknown
+): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .filter(
+      (item): item is string =>
+        typeof item === "string"
+    )
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0)
+    .slice(0, 8);
+}
+
+function isSeverity(
+  value: unknown
+): value is Severity {
+  return (
+    value === "LOW" ||
+    value === "MEDIUM" ||
+    value === "HIGH" ||
+    value === "CRITICAL"
+  );
+}
+
+function isServiceMode(
+  value: unknown
+): value is ServiceMode {
+  return (
+    value === "hospital" ||
+    value === "police" ||
+    value === "blood_bank" ||
+    value === "shelter" ||
+    value === "women_safety" ||
+    value === "child_safety" ||
+    value === "food_support" ||
+    value === "ambulance" ||
+    value === "general_emergency"
+  );
+}
+
+function isRecord(
+  value: unknown
+): value is Record<string, unknown> {
+  return (
+    typeof value === "object" &&
+    value !== null
+  );
+}
+
+function stripCodeFences(
+  text: string
+): string {
+  return text
+    .trim()
+    .replace(/^```json/i, "")
+    .replace(/^```/i, "")
+    .replace(/```$/i, "")
+    .trim();
 }
