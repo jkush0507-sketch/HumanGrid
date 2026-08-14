@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ShieldAlert, Phone, MapPin, X } from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/context/useAuth";
 import { sendSOS } from "@/services/sos";
 
 const SOS = () => {

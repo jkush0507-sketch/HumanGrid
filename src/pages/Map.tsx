@@ -1,10 +1,5 @@
-<<<<<<< HEAD
-import { Building2, Shield, Droplet } from 'lucide-react';
-import DashboardHeader from '../components/Layout/Dashboardheader';
-=======
-﻿import { Building2, Shield, Droplet } from 'lucide-react';
 import DashboardHeader from '../components/Layout/DashboardHeader';
->>>>>>> 8d9ac64bc967aa03bd5462770bf31062e061924a
+import { Building2, Shield, Droplet } from 'lucide-react';
 import { findNearby } from '../utils/findNearby';
 
 const services = [

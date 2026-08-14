@@ -4,14 +4,8 @@ import type {
   NearbyService,
   ServiceCardDefinition,
   ServiceMode,
-<<<<<<< HEAD
 } from '../types';
 import { distanceKm } from './location';
-=======
-} from "@/types";
-import { distanceKm } from "./location";
->>>>>>> 8d9ac64bc967aa03bd5462770bf31062e061924a
-
 export const SERVICE_CARDS: ServiceCardDefinition[] = [
   { mode: "hospital", title: "Hospital Assistance", description: "Medical emergencies, injuries, and urgent care guidance.", icon: "Cross" },
   { mode: "blood_bank", title: "Blood Bank", description: "Blood-group and blood-support guidance.", icon: "Droplet" },
